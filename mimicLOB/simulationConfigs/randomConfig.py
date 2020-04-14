@@ -1,0 +1,68 @@
+
+
+
+def get_config(**kwargs):
+    order_book = kwargs['order_book']
+    newsChannel = kwargs['newsChannel']
+    sched = kwargs['sched']
+
+    return {'LOB'         : {'ticksize' : 0.1},
+            'information' : {'basicInfo' : {'type'        : 'genericInformation',
+                                            'intensity'   : 0.03,
+                                            'channel'     : newsChannel,
+                                            'scheduler'   : sched}},
+            'agents'      : {
+                            'agent1' : {'type'           : 'randomAgent',
+                                        'subtype'       : 'randomLimitBuyer',
+                                        'orderbook'     : order_book,
+                                        'intensity'     : 0.4,
+                                        'channel'       : newsChannel,
+                                        'quantityRange' : [50, 200, 10]},
+                            'agent2' : {'type'          : 'randomAgent',
+                                        'subtype'       : 'randomMarketBuyer',
+                                        'orderbook'     : order_book,
+                                        'intensity'     : 0.4,
+                                        'channel'       : newsChannel,
+                                        'quantityRange' : [50, 200, 10]},
+                            'agent3' : {'type'          : 'randomAgent',
+                                        'subtype'       : 'randomLimitSeller',
+                                        'orderbook'     : order_book,
+                                        'intensity'     : 0.4,
+                                        'channel'       : newsChannel,
+                                        'quantityRange' : [50, 200, 10]},
+                            'agent4' : {'type'          : 'randomAgent',
+                                        'subtype'       : 'randomMarketSeller',
+                                        'orderbook'     : order_book,
+                                        'intensity'     : 0.4,
+                                        'channel'       : newsChannel,
+                                        'quantityRange' : [50, 200, 10]},
+                            # 'agent5' : {'type'          : 'randomAgent',
+                            #             'subtype'       : 'randomLimitBuyer',
+                            #             'orderbook'     : order_book,
+                            #             'intensity'     : 0.4,
+                            #             'channel'       : newsChannel,
+                            #             'quantityRange' : [50, 200, 10]},
+                            # 'agent6' : {'type'          : 'randomAgent',
+                            #             'subtype'       : 'randomMarketBuyer',
+                            #             'orderbook'     : order_book,
+                            #             'intensity'     : 0.4,
+                            #             'channel'       : newsChannel,
+                            #             'quantityRange' : [50, 200, 10]},
+                            # 'agent7' : {'type'          : 'randomAgent',
+                            #             'subtype'       : 'randomLimitSeller',
+                            #             'orderbook'     : order_book,
+                            #             'intensity'     : 0.4,
+                            #             'channel'       : newsChannel,
+                            #             'quantityRange' : [50, 200, 10]},
+                            # 'agent8' : {'type'          : 'randomAgent',
+                            #             'subtype'       : 'randomMarketSeller',
+                            #             'orderbook'     : order_book,
+                            #             'intensity'     : 0.4,
+                            #             'channel'       : newsChannel,
+                            #             'quantityRange' : [50, 200, 10]},  
+                            'MM'     : {'type'          : 'basicMarketMaker',
+                                        'orderbook'     : order_book,
+                                        'refQuantity'   : 100,
+                                        'refPrice'      : 100}}}
+#################################################################
+

@@ -1,0 +1,60 @@
+{% set name = "mimicLOB" %}
+{% set version = "0.0.1" %}
+
+
+package:
+  name: '{{ name|lower }}'
+  version: '{{ version }}'
+
+source:
+  path: ../
+
+build:
+  noarch: python 
+  number: 0 
+
+
+requirements:
+  build:
+    - python
+    - QRLib
+    - scikit-learn >=0.19.0
+    - setuptools
+    - ipython >=6.0.0
+    - numpy >=1.15.0
+    - pywin32 >=223
+    - matplotlib >=3.0.2
+    - statsmodels >=0.9.0
+    - scipy >=1.2.1
+    - numpy >=1.15.4
+    - pandas >=0.24.1
+    - seaborn >=0.9.0
+    - blpapi
+
+
+  run:
+    - python
+    - QRLib
+    - scikit-learn >=0.19.0
+    - ipython >=6.0.0
+    - numpy >=1.15.0
+    - pywin32 >=223
+    - matplotlib >=3.0.2
+    - statsmodels >=0.9.0
+    - scipy >=1.2.1
+    - numpy >=1.15.4
+    - pandas >=0.24.1
+    - seaborn >=0.9.0  
+    - blpapi
+
+
+test:
+    source_files:
+     - test
+    commands:
+     - python "test\test.py"
+
+about:
+  author: Fayçal DRISSI
+  email: faycal.drissi@gmail.com
+  summary: mimic LOB is a framework with an in-house matching Engine & specific agents based on different models that allows simulation of high frequency trading strategies. Please refer to demo files for more info & documentation.

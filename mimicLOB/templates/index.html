@@ -1,0 +1,116 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>mimic LOB</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<link href="{{ url_for('static',     filename='css/style.css') }}" rel="stylesheet" type="text/css" />
+<script type="text/javascript" src="{{ url_for('static',     filename='js/cufon-yui.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static',     filename='js/georgia.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static',     filename='js/cuf_run.js') }}"></script>
+</head>
+<body>
+<div class="main">
+  <div class="header">
+    <div class="header_resize">
+      <div class="logo">
+        <h1><a href="{{ url_for('index') }}">mimic LOB<br />
+          <small>Limit Order Book Simulator</small></a></h1>
+      </div>
+      <div class="menu_nav">
+        <ul>
+          <li class="active"><a href="{{ url_for('index') }}" >Home</a></li>
+          <li><a href="{{ url_for('liveLOB') }}">Live LOB</a></li>
+          <li><a href="{{ url_for('histoLOB') }}">Historical Prices</a></li>
+          <li><a href="{{ url_for('Logs') }}">Logs</a></li>
+          <li><a href="{{ url_for('index') }}">About Us</a></li>
+        </ul>
+        <div class="clr"></div>
+      </div>
+      <div class="clr"></div>
+    </div>
+  </div>
+  <div class="content">
+    <div class="content_resize">
+      <div class="mainbar">
+        
+        {% block content %}
+        {% endblock %}
+        
+        <div class="article">
+          <h2><span>About</span></h2>
+          <p>Posted by <a href="#">Fayçal Drissi</a>
+          <img src="{{ url_for('static',     filename='images/img1.jpg') }}" width="613" height="154" alt="" />
+          <p>This is a free LOB simulator environement. No License</a>, which means that you are free to use it for any personal or commercial purpose provided you credit me somehow.</p>
+          <!-- <p><a href="#" class="obg">Read more</a> <span>&nbsp;&bull;&nbsp;</span> <a href="#" class="obg">Comments (3)</a> | February 19, 2020</p> -->
+        </div>
+        
+        <div class="article">
+          <h2><span>Agent Configuration : {{ ConfigurationAddress | safe}}</span></h2>
+          {{ AgentConfiguration | safe}}
+          <!-- <p><a href="#" class="obg">Read more</a> <span>&nbsp;&bull;&nbsp;</span> <a href="#" class="obg">Comments (3)</a> | February 19, 2020</p> -->
+        </div> 
+        
+        <div class="article">
+          <h2><span>News Configuration : : {{ LOBAddress | safe}}</span></h2>
+          {{ NewsConfiguration | safe}}
+          <!-- <p><a href="#" class="obg">Read more</a> <span>&nbsp;&bull;&nbsp;</span> <a href="#" class="obg">Comments (3)</a> | February 19, 2020</p> -->
+        </div> 
+
+      </div>
+      <div class="sidebar">
+        <div class="gadget">
+          <h2 class="star"><span>Sidebar</span> Menu</h2>
+          <ul class="sb_menu">
+            <li>
+              <form method="post" action="/">
+                <input type="submit" name="Start" value="Start"/>
+                <input type="submit" name="Stop" value="Stop"/>
+              </form>
+            </li>
+            <li><a href="#">Simulator Parameters</a></li>
+            <li><a href="#">Launch Simulation</a></li>
+            <li><a href="#">Stop Simulation</a></li>
+            <li><a href="#">Agents</a></li>
+            <li><a href="#">Historical Prices</a></li>
+            <li><a href="#">Historical Trades</a></li>
+            <li><a href="#">Live Info Feed</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="clr"></div>
+    </div>
+  </div>
+  <div class="fbg">
+    <div class="fbg_resize">
+      <div class="col c1">
+        <h2>Image Gallery</h2>
+        <a href="#"><img src="{{ url_for('static',     filename='images/pix1.jpg') }}"  width="56" height="56" alt="" /></a> <a href="#"><img src="{{ url_for('static',     filename='images/pix2.jpg') }}"  width="56" height="56" alt="" /></a> <a href="#"><img src="images/pix3.jpg" width="56" height="56" alt="" /></a> <a href="#"><img src="images/pix4.jpg" width="56" height="56" alt="" /></a> <a href="#"><img src="images/pix5.jpg" width="56" height="56" alt="" /></a> <a href="#"><img src="images/pix6.jpg" width="56" height="56" alt="" /></a> </div>
+      <div class="col c2">
+        <h2>About the Author</h2>
+        <p>Fayçal Drissi<br />
+          Applied Mathematic PhD Student at King's College London</p>
+      </div>
+      <div class="col c3">
+        <h2>About the Project</h2>
+        <img src="{{ url_for('static',     filename='images/white.jpg') }}"  width="56" height="56" alt="" />
+        <p>The project is with association with KCL's professor Roxana Dumitrescu, Turing Institue of London, and Institut Pasteur of France.<a href="#">Learn more...</a></p>
+      </div>
+      <div class="clr"></div>
+    </div>
+  </div>
+  <div class="footer">
+    <div class="footer_resize">
+      <p class="lf">&copy; Copyright mimicLOB. Designed by Fayçal Drissi.</p>
+      <ul class="fmenu">
+        <li class="active"><a href="{{ url_for('index') }}" >Home</a></li>
+        <li><a href="{{ url_for('liveLOB') }}">Live LOB</a></li>
+        <li><a href="{{ url_for('index') }}">How To</a></li>
+        <li><a href="{{ url_for('index') }}">About Us</a></li>
+        <li><a href="{{ url_for('index') }}">Contacts</a></li>
+      </ul>
+      <div class="clr"></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

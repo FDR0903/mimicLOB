@@ -1,0 +1,38 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>mimic LOB</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+
+</head>
+<body>
+  {% extends "index.html" %}
+  {% block content %}
+  <div class="article">
+    <h2><span>Simulator LOG</span></h2>
+    <div class="container">
+      <div class="row">
+          <div class="col-12">
+              <div class="card">
+                  <div class="card-body">
+                    <!-- <div id="list">
+                      <p><iframe src="{{ url_for('static',     filename='logs/mainLOG.html') }}" frameborder="0" height="400"
+                          width="95%"></iframe></p>
+                    </div> -->
+                    <object data="{{ url_for('static',     filename='logs/mainLog.txt') }}" type="text/plain"
+                      width="500" style="height: 300px">
+                    </object>
+
+                    <object data="/tmp/mainLog.txt" type="text/plain"
+                      width="500" style="height: 300px">
+                    </object>
+                  </div>
+              </div>
+          </div>
+      </div>
+    </div>
+  
+  </div>
+  {% endblock %}
+</body>
+</html>
