@@ -8,7 +8,7 @@ setuptools.setup(
     name= mimicLOB.__name__,
     version= mimicLOB.__version__,
     author="Fayçal DRISSI",
-    author_email="faycal.drissi@gmail.com",
+    author_email="FDR0903.DEV@gmail.com",
     description="Simulation at the LOB level",
     long_description=long_description,
     long_description_content_type="text/markdown",
