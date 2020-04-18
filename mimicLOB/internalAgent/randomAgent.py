@@ -9,7 +9,7 @@ The random agent sends random quantities between a range given in its constructi
 
 If the random agent is a limit order sender, he sends half the quantity at each limit
 
-@author: Fayçal Drissi
+@author: FDR
 """
 
 """ 

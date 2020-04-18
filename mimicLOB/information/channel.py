@@ -4,7 +4,7 @@ Created on Thu Apr 12 19:01:34 2018
 
 The Channel a class is a doubly linked chain of news.
 
-@author: Fayçal Drissi
+@author: FDR
 """
 
 """ 

@@ -6,7 +6,7 @@ The basic Market Maker always fill the closest ticks to the mid price.
 
 He does not control the imbalance. If there is no ask or bids, he fills them with two limits.
 
-@author: Fayçal Drissi
+@author: FDR
 """
 
 """ 
@@ -23,76 +23,83 @@ class basicMM(genericAgent):
         super().__init__(**kwargs)
         self.JobSO = None
         self.JobCO = None
-        
+        self.nbOfTicksForCancelation = 10 if 'nbOfTicksForCancelation' not in self.dict_params else self.dict_params['nbOfTicksForCancelation']
+
     #verify parameters ?
     def sendOrders(self):
-        ticksize = requests.get(f"{self.server}/getticksize").json()['ticksize']
+        ticksize = self.getTickSize()
 
         Quantity = Decimal(self.dict_params['refQuantity'])
         RefPrice = Decimal(self.dict_params['refPrice'])
         HalfQuantity = Decimal(int(Quantity/2))
         # if no sellers, post some orders
-        bestask = requests.get(f"{self.server}/getbestask").json()['bestask']
-        bestbid = requests.get(f"{self.server}/getbestbid").json()['bestbid']
+        bestask = self.getBestAsk()
+        bestbid = self.getBestBid()
         if ((bestask is None) & (bestbid is None)):                
             # send ask & bid orders at 100 +- tick size
-            self.send_buy_limit_order(Quantity, RefPrice-ticksize, None, 'marketMaker')
-            self.send_buy_limit_order(HalfQuantity, RefPrice-2*ticksize, None, 'marketMaker')
-            self.send_sell_limit_order(Quantity, RefPrice+ticksize, None, 'marketMaker')
-            self.send_sell_limit_order(HalfQuantity, RefPrice+2*ticksize, None, 'marketMaker')
+            self.send_buy_limit_order(Quantity, RefPrice-ticksize)
+            self.send_buy_limit_order(HalfQuantity, RefPrice-2*ticksize)
+            self.send_sell_limit_order(Quantity, RefPrice+ticksize)
+            self.send_sell_limit_order(HalfQuantity, RefPrice+2*ticksize)
         elif bestask is None:
             # if self.lastTradePrice == 0:
-            self.send_sell_limit_order(Quantity, bestbid+ticksize, None, 'marketMaker')
-            self.send_sell_limit_order(HalfQuantity, bestbid+2*ticksize, None, 'marketMaker')
+            self.send_sell_limit_order(Quantity, bestbid+ticksize)
+            self.send_sell_limit_order(HalfQuantity, bestbid+2*ticksize)
             
         elif bestbid is None:
-            self.send_buy_limit_order(Quantity, bestask-ticksize, None, 'marketMaker')
-            self.send_buy_limit_order(HalfQuantity, bestask-2*ticksize, None, 'marketMaker')
+            self.send_buy_limit_order(Quantity, bestask-ticksize)
+            self.send_buy_limit_order(HalfQuantity, bestask-2*ticksize)
 
         else:
             # Control the spread with last trade price
             if bestask - bestbid > ticksize:
                 # if last trade price is closest to bid, post ask orders. vice-versa
-                lastTradePrice =  requests.get(f"{self.server}/getlastTradePrice").json()['lastTradePrice']
-                lastlastTradeSign = requests.get(f"{self.server}/getlastTradeSign").json()['lastTradeSign']
+                lastTradePrice = self.getlastTradePrice()
+                lastlastTradeSign = self.getlastTradeSign()
 
                 # post at last price and at the same direct as last trade sign / liquidity consumption
                 if lastlastTradeSign=='bid':
-                    qtty = requests.get(f"{self.server}/get_volume_at_price", 
-                                    json={'side':'ask', 'price':bestask}).json()['volume']
-
-                    self.send_buy_limit_order(qtty, lastTradePrice, None, 'marketMaker')
+                    qtty = self.get_volume_at_price('ask', bestask)
+                    self.send_buy_limit_order(qtty, lastTradePrice)
                 else:
-                    qtty = requests.get(f"{self.server}/get_volume_at_price", 
-                                    json={'side':'bid', 'price':bestbid}).json()['volume']
-
-                    self.send_sell_limit_order(qtty, lastTradePrice, None, 'marketMaker')
+                    qtty = self.get_volume_at_price('bid', bestbid)
+                    self.send_sell_limit_order(qtty, lastTradePrice)
                 
                 # add liquidity
                 if (lastTradePrice-bestbid > bestask-lastTradePrice): 
                     # post bids
                     i = 1
                     while bestbid+i*ticksize <= bestask:
-                        self.send_buy_limit_order(Quantity, bestbid+i*ticksize, None, 'marketMaker')
+                        self.send_buy_limit_order(Quantity, bestbid+i*ticksize)
                         i += 1   
                 elif (lastTradePrice-bestbid < bestask-lastTradePrice):
                     # post asks
                     i = 0
                     while bestask-i*ticksize > bestbid:
-                        self.send_sell_limit_order(Quantity, bestask-i*ticksize , None, 'marketMaker')
+                        self.send_sell_limit_order(Quantity, bestask-i*ticksize)
                         i += 1   
                 # else:
                     
         # except:
-        #     print('I couldn t market make bro')                
+        #     print('I couldn t market make it bro')                
+
+    def start(self, sched):
+        self.jobSO = sched.add_job(self.sendOrders, 'interval', seconds=0.0005, jitter=0.1, max_instances=1)
+        self.JobCO = sched.add_job(self.cancelFarAwayOrders, 'interval', seconds=1, jitter=0.5, max_instances=1) 
+    
+    def stop(self, sched):
+        if self.JobSO:  self.JobSO.remove()       
+        if self.JobCO:  self.JobCO.remove()    
+        self.JobSO = None
+        self.JobCO = None
 
     def cancelFarAwayOrders(self):
         try:
-            tickSize = requests.get(f"{self.server}/getticksize").json()['ticksize']
+            tickSize = self.getTickSize()
             keys_ = self.pendingorders.keys()
             nbTicks = self.nbOfTicksForCancelation 
 
-            for key_ in keys_:
+            for key_ in list(keys_): # transformed to list on purpose
                 order = self.pendingorders[key_]
                 
                 # if they are executed    
@@ -102,16 +109,14 @@ class basicMM(genericAgent):
 
                 # best price at side
                 if side == 'bid':
-                    bestPrice = requests.get(f"{self.server}/getbestbid").json()['bestbid']
+                    bestPrice = self.getBestBid()
                 else:
-                    bestPrice = requests.get(f"{self.server}/getbestask").json()['bestask']
+                    bestPrice = self.getBestAsk()
                 
-                # if best price < nbTicks * tickSize, cancel
-                if (((side=='bid') & (price < bestPrice - nbTicks*tickSize)) | ((side=='ask') & (price > bestPrice + nbTicks*tickSize))):
-                    params = {'side':side, 'id':key_}
-                    requests.get(f"{self.server}/cancelOrder",
-                                    json=params).json()
-                    del self.pendingorders[key_]
+                if bestPrice is not None:
+                    # if best price < nbTicks * tickSize, cancel
+                    if (((side=='bid') & (price < bestPrice - nbTicks*tickSize)) | ((side=='ask') & (price > bestPrice + nbTicks*tickSize))):
+                        self.cancelOrder(side, key_)
         except Exception as e:
             print(f'ERROR canceling far away orders {str(e)}')
 

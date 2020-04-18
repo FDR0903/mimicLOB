@@ -11,3 +11,4 @@ __pycache__/
 *.pkl
 *.h5
 log*.txt
+demo/old/*

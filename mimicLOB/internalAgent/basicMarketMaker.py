@@ -6,7 +6,7 @@ The basic Market Maker always fill the closest ticks to the mid price.
 
 He does not control the imbalance. If there is no ask or bids, he fills them with two limits.
 
-@author: Fayçal Drissi
+@author: FDR
 """
 
 """ 

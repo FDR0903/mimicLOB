@@ -4,7 +4,7 @@ Created on Thu Apr 12 19:01:34 2018
 
 The replayer agent replays historical orders
 
-@author: Fayçal Drissi
+@author: FDR
 """
 
 """ 

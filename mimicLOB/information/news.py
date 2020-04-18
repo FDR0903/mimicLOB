@@ -5,7 +5,7 @@ Created on Thu Apr 12 19:01:34 2018
 
 The News Class is an object with a time stamp, a news value between 0 and 100, and a link to previous and next news.
 
-@author: Fayçal Drissi
+@author: FDR
 """
 
 """ 

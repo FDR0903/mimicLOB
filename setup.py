@@ -7,7 +7,7 @@ with open("README.md", "r") as fh:
 setuptools.setup(
     name= mimicLOB.__name__,
     version= mimicLOB.__version__,
-    author="Fayçal DRISSI",
+    author="FDR",
     author_email="FDR0903.DEV@gmail.com",
     description="Simulation at the LOB level",
     long_description=long_description,

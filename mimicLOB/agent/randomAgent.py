@@ -9,7 +9,7 @@ The random agent sends random quantities between a range given in its constructi
 
 If the random agent is a limit order sender, he sends half the quantity at each limit
 
-@author: Fayçal Drissi
+@author: FDR
 """
 
 """ 
@@ -36,15 +36,23 @@ class randomAgent(genericAgent):
 
         self.nbOfTicksForCancelation = 10 if 'nbOfTicksForCancelation' not in self.dict_params else self.dict_params['nbOfTicksForCancelation']
 
-        if self.distant:
-            self.newsChannel = self.dict_params['channel']
+        self.newsChannel = self.dict_params['channel']
             
     def getlastnews(self):
         if self.distant:
             return requests.get(f"{self.server}/getlastnews").json()['lastnews']
         else:
-            return self.newsChannel.get_latest_news()
+            return self.newsChannel.get_latest_news().val
 
+    def start(self, sched):
+        self.jobSO = sched.add_job(self.sendOrders, 'interval', seconds=0.001, jitter=0.1, max_instances=1)
+        self.JobCO = sched.add_job(self.cancelFarAwayOrders, 'interval', seconds=1, jitter=0.5, max_instances=1) 
+    
+    def stop(self, sched):
+        if self.JobSO:  self.JobSO.remove()       
+        if self.JobCO:  self.JobCO.remove()    
+        self.JobSO = None
+        self.JobCO = None
     def sendOrders(self):
         if self.Pathposition == 1000: self.Pathposition = 0
         if self.PoissonPath[self.Pathposition] == 1:
@@ -62,28 +70,28 @@ class randomAgent(genericAgent):
             
             if type_ == 'randomLimitBuyer':
                 bestask = self.getBestAsk()
-                bump = ((lastNews - 50) *2)/100 + 1      
+                bump = ((lastNews - 49) *2)/100 + 1      
                 qtty = Decimal(int(qtty*bump))
                 # post at bestask and some tick sizes randomly
-                if bestask is not None: self.send_buy_limit_order(qtty, bestask-ticksize, self.id)
+                if bestask is not None: self.send_buy_limit_order(qtty, bestask-ticksize)
 
             elif type_ == 'randomMarketBuyer':
                 bump = ((lastNews - 50) *2)/100 + 1        
                 qtty = Decimal(int(qtty*bump))
-                self.send_buy_market_order(qtty, 0)
+                self.send_buy_market_order(qtty)
 
             elif type_ == 'randomLimitSeller':
                 bump = ((50 - lastNews) *2)/100 + 1          
                 qtty = Decimal(int(qtty*bump))
-                bestbid = requests.get(f"{self.server}/getbestbid").json()['bestbid']
+                bestbid = self.getBestBid()
 
                 # post at bestask and some tick sizes randomly
-                if bestbid is not None: self.send_sell_limit_order(qtty, bestbid+Decimal(ticksize), None, 0)
+                if bestbid is not None: self.send_sell_limit_order(qtty, bestbid+Decimal(ticksize))
 
             elif type_ == 'randomMarketSeller':
                 bump = ((50 - lastNews) *2)/100 + 1              
                 qtty = Decimal(int(qtty*bump))
-                self.send_sell_market_order(qtty, 0)
+                self.send_sell_market_order(qtty)
             else:
                 sys.exit('agent.ranndomagent.sendOrders() given a wrong type of basic random agent')
 
@@ -91,11 +99,11 @@ class randomAgent(genericAgent):
     
     def cancelFarAwayOrders(self):
         try:
-            tickSize = float(requests.get(f"{self.server}/getticksize").json()['ticksize'])
+            tickSize = self.getTickSize()
             keys_ = self.pendingorders.keys()
             nbTicks = self.nbOfTicksForCancelation 
 
-            for key_ in keys_:
+            for key_ in list(keys_): # transformed to list on purpose
                 order = self.pendingorders[key_]
                 
                 # if they are executed    
@@ -105,17 +113,14 @@ class randomAgent(genericAgent):
 
                 # best price at side
                 if side == 'bid':
-                    bestPrice = float(requests.get(f"{self.server}/getbestbid").json()['bestbid'])
+                    bestPrice = self.getBestBid()
                 else:
-                    bestPrice = float(requests.get(f"{self.server}/getbestask").json()['bestask'])
+                    bestPrice = self.getBestAsk()
                 
                 if bestPrice is not None:
                     # if best price < nbTicks * tickSize, cancel
                     if (((side=='bid') & (price < bestPrice - nbTicks*tickSize)) | ((side=='ask') & (price > bestPrice + nbTicks*tickSize))):
-                        params = {'side':side, 'id':key_}
-                        requests.get(f"{self.server}/cancelOrder",
-                                        json=params).json()
-                        del self.pendingorders[key_]
+                        self.cancelOrder(side, key_)
         except Exception as e:
             print(f'ERROR canceling far away orders {str(e)}')
                 

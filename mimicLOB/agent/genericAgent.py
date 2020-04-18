@@ -5,7 +5,7 @@ Created on 16Feb2020
 Agent : abstract class
 
 
-@author: Fayçal DRISSI
+@author: FDR
 """
 
 
@@ -50,11 +50,10 @@ class genericAgent(ABC):
             self.addAgent2LOB(self)        
 
     def addAgent2LOB(self, agent):
-        # if self.distant:
-            
-        #     # orderbook.
-        # else:
-        self.orderbook.addAgent(agent)
+        if self.distant:
+            requests.get(f"{self.server}/getbestbid").json()['bestbid']
+        else:
+            self.orderbook.addAgent(agent)
 
     """
     GETTERS
@@ -401,7 +400,28 @@ class genericAgent(ABC):
         else:
             return 'Only the market can reset the LOB'
 
+    def getlastTradePrice(self):
+        if self.distant:
+            lastTradePrice =  requests.get(f"{self.server}/getlastTradePrice").json()['lastTradePrice']
+        else:
+            lastTradePrice = self.orderbook.lastTradePrice
+        return lastTradePrice
 
+
+    def getlastTradeSign(self):
+        if self.distant:
+            lastlastTradeSign = requests.get(f"{self.server}/getlastTradeSign").json()['lastTradeSign']
+        else:
+            lastlastTradeSign = self.orderbook.lastTradeSign
+        return lastlastTradeSign
+
+    def get_volume_at_price(self, side, price):
+        if self.distant:
+            return requests.get(f"{self.server}/get_volume_at_price", 
+                                    json={'side':side, 'price':price}).json()['volume']
+        else:
+            return self.orderbook.get_volume_at_price(side, price)
+        
     def resetLOB(self):
         if self.id=='market':
             if self.distant:
