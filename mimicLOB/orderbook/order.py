@@ -1,5 +1,6 @@
 from decimal import * 
 import time, random
+import copy
 
 class Order(object):
     '''
@@ -23,6 +24,7 @@ class Order(object):
         self.prev_order = None
         self.order_list = order_list
 
+
     # helper functions to get Orders in linked list
     def next_order(self):
         return self.next_order
@@ -39,5 +41,5 @@ class Order(object):
         self.quantity = new_quantity
 
     def __str__(self):
-        return "{}@{}/{} - {}".format(self.quantity, self.price,
-                                      self.trader_id, self.timestamp)
+        return "{}@{}/{} - {} - {}".format(self.quantity, self.price,
+                                      self.trader_id, self.order_id, self.timestamp )

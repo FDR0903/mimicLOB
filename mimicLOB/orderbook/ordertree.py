@@ -1,6 +1,7 @@
 from sortedcontainers import SortedDict
 from .orderlist import OrderList
 from .order import Order
+import sys
 
 class OrderTree(object):
     '''A red-black tree used to store OrderLists in price order
@@ -40,6 +41,36 @@ class OrderTree(object):
 
     def order_exists(self, order):
         return order in self.order_map
+
+    def insert_order_with_time(self, o_order):
+        if self.order_exists(o_order.order_id):
+            self.remove_order_by_id(o_order.order_id)
+        self.num_orders += 1
+        if o_order.price not in self.price_map:
+            self.create_price(o_order.price) # If price not in Price Map, create a node in RBtree
+        order = o_order #Order(quote, self.price_map[quote['price']]) # Create an order
+        self.price_map[order.price].append_order_with_time(order) # Add the order to the OrderList in Price Map
+        self.order_map[order.order_id] = order
+        self.volume += order.quantity
+
+    # order exists in another list and is moved here (with time)
+    def move_order_with_time(self, o_order):
+        if not self.order_exists(o_order.order_id):
+            sys.exit('Error move_order_with_time. Trying to move unexisting order !')
+
+        if o_order.price not in self.price_map:
+            self.create_price(o_order.price) # If price not in Price Map, create a node in RBtree
+        
+        quote = {'timestamp': o_order.timestamp,
+                 'quantity' : o_order.quantity,
+                 'price'    : o_order.price,
+                 'order_id' : o_order.order_id,
+                 'trader_id': o_order.trader_id,
+                 'side'     : o_order.side}
+
+        order = Order(quote, self.price_map[quote['price']]) # Create an order
+        self.price_map[order.price].append_order_with_time(order) # Add the order to the OrderList in Price Map
+        self.order_map[order.order_id] = order
 
     def insert_order(self, quote):
         if self.order_exists(quote['order_id']):

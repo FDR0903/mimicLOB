@@ -23,8 +23,16 @@ class replayerAgent(genericAgent):
         super().__init__( **kwargs)
         # Columns should be : 
         # [ORDER_ID, PRICE, QTY, ORDER_SIDE, ORDER_TYPE, ACTION_TYPE]
-        self.historicalOrders = self.dict_params['historicalOrders']
+        self._historicalOrders = self.dict_params['historicalOrders']
     
+    @property
+    def historicalOrders(self):
+        return self._historicalOrders
+
+    @historicalOrders.setter
+    def historicalOrders(self, historicalOrders):
+        self._historicalOrders = historicalOrders
+
     def replayOrders(self):
         for i in self.historicalOrders.index:
 
@@ -53,7 +61,7 @@ class replayerAgent(genericAgent):
             elif self.historicalOrders.loc[i, 'ACTION_TYPE'] == 'C':
                 side = 'bid' if self.historicalOrders.loc[i, 'ORDER_SIDE']=='B' else 'ask'
                 order_id = int(self.historicalOrders.loc[i, 'ORDER_ID'])
-                self.cancelOrder(side     = 'ask', 
+                self.cancelOrder(side     = side, 
                                  order_id = order_id)
             
             #replace order

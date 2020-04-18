@@ -7,7 +7,7 @@ import numpy as np
 from .ordertree import OrderTree
 import pandas as pd
 import time
-
+from .orderlist import OrderList
 class OrderBook(object):
     def __init__(self,  **kwargs):
         
@@ -24,7 +24,7 @@ class OrderBook(object):
         # Tapes
         self.tape = deque(maxlen=None) # Transaction tape, Index[0] is most recent trade
         self._LOBtape = deque(maxlen=None) # lob tape, is most recent trade
-        
+
         self._pricetape = []
         self._qttytape = []
         self._tstape = []
@@ -51,12 +51,24 @@ class OrderBook(object):
         self._verbose = verbose
 
         # booleans
-        self._b_tape = b_tape
-        self._b_tape_LOB = b_tape_LOB # lot of memory and time consumption
+        self._b_tape     = b_tape # tape transactions
+        self._b_tape_LOB = b_tape_LOB # requires lot of memory and time consumption
+        self._b_auction  = kwargs['b_auction'] if 'b_auction' in kwargs else False # Specifies if the LOB i s in auction mode
+
+        # method of order processing
+        if self.b_auction:
+            self.process_order = self.process_order_during_auction
+        else:
+            self.process_order = self.process_order_during_continuous_trading
+
 
 #########################################
 # Accessors, Setter, and Destructors
 #########################################
+    @property
+    def b_auction(self):
+        return self._b_auction
+    
     @property
     def maxEntries(self):
         return self._maxEntries
@@ -156,6 +168,117 @@ class OrderBook(object):
     @asks.setter
     def asks(self, asks):
         self._asks = asks
+    @b_auction.setter
+    def b_auction(self, b_auction):
+        ######################################################
+        # END OF AUCTION ALGORITHM
+        # it means we went from auction to no auction. 
+        # A price should be decided according to walras equilibrium : 
+        # the price that maximizes the offer and demand
+        ###############################################
+        if self.b_auction and not b_auction:
+            # find the best price and execute all orders
+            bidPrices = pd.DataFrame([[price, self.bids.price_map[price].volume] for price in list(self.bids.prices)]).set_index(0)
+            askPrices = pd.DataFrame([[price, self.asks.price_map[price].volume] for price in list(self.asks.prices)]).set_index(0)
+            bidPrices.columns = ['bids']
+            askPrices.columns = ['asks']
+
+            # sort prices
+            askPrices.sort_index(inplace=True)
+            bidPrices.sort_index(ascending=False, inplace=False)
+
+            # get cumulative volumes (cours C.A Lehalle)
+            bidPrices['cum bids'] = bidPrices.loc[::-1, 'bids'].cumsum()[::-1]
+            askPrices['cum asks'] = askPrices.cumsum()
+
+            # Get the price that maximizes the exchanged volume.
+            walras_df = pd.concat([bidPrices, askPrices], axis=1, sort=True).fillna(method='ffill').fillna(method='bfill')
+            walras_df2 = walras_df[['cum bids', 'cum asks']].min(axis=1)[::-1]
+            execPrice = walras_df2.idxmax()
+
+            if self.verbose:
+                print(f'\n*** END OF AUCTION ***\n Best price : {execPrice}')
+
+            # We execute all bids > execPrice or asks < execPrice.
+            self.process_order = self.process_order_during_continuous_trading
+            old_b_tape_LOB = self.b_tape_LOB
+            self._b_tape_LOB = False
+
+            # First change the prices & re-order orders of the orderlist
+            # according to timestamp
+            # if not execPrice in self.bids.prices:
+            #     self.bids.create_price(execPrice)
+            # if not execPrice in self.asks.prices:
+            #     self.asks.create_price(execPrice)
+            for price in list(self.bids.prices):  
+                if price > execPrice:
+                    if self.verbose:
+                        print(f'\n*** Removing bid price : {price}. Quantity : {self.bids.price_map[price].volume} ***')
+
+                    # loop in orders of this order list, add them to the 
+                    for order in self.bids.price_map[price]:    
+                        order.price = execPrice
+                        self.bids.move_order_with_time(order)
+                        # execPrice_bid_orderlist.append_order_with_time(order)
+
+                    self.bids.remove_price(price)
+                    
+
+            # print(self.asks.price_map[execPrice])
+            for price in list(self.asks.prices):    
+                if price < execPrice:
+                    # loop in orders of this order list, add them to the 
+                    if self.verbose:
+                        print(f'\n*** Removing ask price : {price}. Quantity : {self.asks.price_map[price].volume} ***')
+                    for order in self.asks.price_map[price]:    
+                        order.price = execPrice
+                        # update bids
+                        self.asks.move_order_with_time(order)
+
+                    self.asks.remove_price(price)
+
+            
+            execPrice_bid_orderlist = self.bids.price_map[execPrice]
+            execPrice_ask_orderlist = self.asks.price_map[execPrice]
+
+            if walras_df.loc[execPrice, 'cum asks']>walras_df.loc[execPrice, 'cum bids']: 
+                #execute bids
+                if self.verbose:
+                    print(f'\n*** Executing all bids @{execPrice} ***')
+                
+
+                for order in execPrice_bid_orderlist:
+                    quantity_to_trade, new_trades = self.process_order_list('ask', 
+                                                                    execPrice_ask_orderlist, 
+                                                                    order.quantity,
+                                                                    {'order_id' : order.order_id,
+                                                                     'trader_id': order.trader_id})
+                self.bids.remove_price(execPrice)
+            else:
+                print(self.bids.price_map[execPrice])
+                print(self.asks.price_map[execPrice])
+                
+                #execute asks
+                if self.verbose:
+                    print(f'\n*** Executing all asks @{execPrice} ***')
+                for order in execPrice_ask_orderlist:
+                    quantity_to_trade, new_trades = self.process_order_list('bid', 
+                                                                    execPrice_bid_orderlist, 
+                                                                    order.quantity,
+                                                                    {'order_id' : order.order_id,
+                                                                     'trader_id': order.trader_id})
+                self.asks.remove_price(execPrice)
+            self._b_tape_LOB = old_b_tape_LOB
+
+        # it means we stop live trading, and all orders are just
+        # added to the LOB without execution.
+        # elif not self.b_auction and b_auction:
+        self._b_auction = b_auction
+
+        if self.b_auction:
+            self.process_order = self.process_order_during_auction
+        else:
+            self.process_order = self.process_order_during_continuous_trading
 
     def addAgent(self, agent):
         self.agentList[agent.id] = agent
@@ -199,7 +322,51 @@ class OrderBook(object):
                 elif trade['party2_id'] in self.agentList:
                     self.agentList[trade['party2_id']].notify_trades(trade, False)
 
-    def process_order(self, quote):
+
+    def process_order_during_auction(self, quote):
+        order_type = quote['type']
+        order_in_book = None
+        quote['timestamp'] = self.time
+
+        if quote['quantity'] <= 0:
+            sys.exit('process_order() given order of quantity <= 0')
+
+        # no market order during auctions
+        if order_type == 'market':
+            # Tape LOB state before processing order : 
+            if self.b_tape_LOB:
+                self.LOBtape.append(self.getCurrentLOB('market', 'MO', quote))
+            
+            if self.verbose:
+                print(f'\n**** Error : **** \n: Market Order during auction mode {str(quote)}')
+
+        elif order_type == 'limit':
+            quote['price'] = Decimal(quote['price'])
+            side = quote['side']
+
+            # Tape LOB state before processing order : 
+            if self.b_tape_LOB:
+                self.LOBtape.append(self.getCurrentLOB('limit', 'LO', quote))
+            
+            if side=='bid':
+                if not 'order_id' in quote:
+                    quote['order_id'] = self.next_order_id
+                self.bids.insert_order(quote)
+                order_in_book = quote
+            elif side=='ask':
+                if not 'order_id' in quote:
+                    quote['order_id'] = self.next_order_id
+                self.asks.insert_order(quote)
+                order_in_book = quote
+            else:
+                sys.exit('process_limit_order() given neither "bid" nor "ask"')
+        else:
+            sys.exit("order_type for process_order() is neither 'market' or 'limit'")
+        
+        self.notify_agents(None, order_in_book)
+        return None, order_in_book
+
+    def process_order_during_continuous_trading(self, quote):
         order_type = quote['type']
         order_in_book = None
         quote['timestamp'] = self.time
@@ -439,7 +606,13 @@ class OrderBook(object):
                 if self.bids.update_order_looses_priority(order_update):
                     # if true, delete order and re process it (if it becomes agressive)
                     trader_id = self.bids.remove_order_by_id(order_id)
+                    
+                    # don't record the new order, it isn't new.
+                    old_b_tape_lob = self.b_tape_LOB
+                    self._b_tape_LOB = False
                     self.process_order(order_update)
+                    self._b_tape_LOB = old_b_tape_lob
+                    
                 else:
                     self.bids.update_order_quantity(order_update)
                     self.notify_modification(order_update)
@@ -453,7 +626,12 @@ class OrderBook(object):
                 if self.asks.update_order_looses_priority(order_update):
                     # if true, delete order and re process it (if it becomes agressive)
                     trader_id = self.asks.remove_order_by_id(order_id)
+
+                    # don't record the new order, it isn't new.
+                    old_b_tape_lob = self.b_tape_LOB
+                    self._b_tape_LOB = False
                     self.process_order(order_update)
+                    self._b_tape_LOB = old_b_tape_lob
                 else:
                     self.asks.update_order_quantity(order_update)
                     self.notify_modification(order_update)
@@ -567,33 +745,36 @@ class OrderBook(object):
 
         res = [timestamp,  order_id,  price,  quantity,  side,  ordertype_, actiontype_]
         res += [0, 0, 0, 0] * self.maxEntries
-        j = 7+2*self.maxEntries-1
-        try:
-            bestbid = self.bids.prices[-1]
-
-            for i in range(self.maxEntries):
-                price = bestbid - i*self.tick_size
-                res[j-1] = price
-                res[j] = self.bids.price_map[price].volume if price in self.bids.prices else 0
-                j -= 2
-        except:
-            if len(self.bids.prices) > 0:
-                sys.exit('ERROR !')    
         
+        # if it is auction mode, don't store limits
+        if not self.b_auction:
+            j = 7+2*self.maxEntries-1
+            try:
+                bestbid = self.bids.prices[-1]
 
-        j = 7+2*self.maxEntries
-        try:
-            bestask = self.asks.prices[0]
+                for i in range(self.maxEntries):
+                    price = bestbid - i*self.tick_size
+                    res[j-1] = price
+                    res[j] = self.bids.price_map[price].volume if price in self.bids.prices else 0
+                    j -= 2
+            except:
+                if len(self.bids.prices) > 0:
+                    sys.exit('ERROR !')    
+            
 
-            for i in range(self.maxEntries):
-                price = bestask + i*self.tick_size
-                res[j] = price
-                res[j+1] = self.asks.price_map[price].volume if price in self.asks.prices else 0
-                j += 2
-        except:
-            if len(self.asks.prices) > 0:
-                sys.exit('ERROR !')
-        
+            j = 7+2*self.maxEntries
+            try:
+                bestask = self.asks.prices[0]
+
+                for i in range(self.maxEntries):
+                    price = bestask + i*self.tick_size
+                    res[j] = price
+                    res[j+1] = self.asks.price_map[price].volume if price in self.asks.prices else 0
+                    j += 2
+            except:
+                if len(self.asks.prices) > 0:
+                    sys.exit('ERROR !')
+            
         return res
 
 
