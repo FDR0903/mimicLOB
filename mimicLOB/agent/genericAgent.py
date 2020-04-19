@@ -18,6 +18,7 @@ import requests
 import time
 import pandas as pd
 import sys
+from .FIXserver import FIXserver
 
 class genericAgent(ABC):
     def __init__(self, **kwargs):
@@ -26,7 +27,8 @@ class genericAgent(ABC):
         # Client/Server or direct
         self._distant = self.__dict_params['distant'] if 'distant' in self.__dict_params else False
         if self._distant:
-            self._server = self.__dict_params['server']
+            self._server = self.__dict_params['server'] # lob server
+            self._fixserver = FIXserver(self, self.__dict_params['FIXport'])
         else:
             self._orderbook = self.__dict_params['orderbook']
 
@@ -51,13 +53,20 @@ class genericAgent(ABC):
 
     def addAgent2LOB(self, agent):
         if self.distant:
-            requests.get(f"{self.server}/getbestbid").json()['bestbid']
+            params = {'id' : self._id,
+                      'address' : self._fixserver.getAddress()
+            }
+            requests.get(f"{self.server}/addAgent2LOB",
+                            json=params).json()['bestbid']
         else:
             self.orderbook.addAgent(agent)
 
     """
     GETTERS
     """
+    @property
+    def FIXserver(self):
+        return self._fixserver
     @property
     def id(self):
         return self._id

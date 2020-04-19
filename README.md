@@ -1,10 +1,11 @@
-BacktestEngine
+mimicLOB
 ========================================================
 
 mimicLOB is a package for 
+    - LOB Simulation
 	- High Frequency Strategy definiton
 	- High Frequency Strategy backtesting
-	- LOB Simulation
+	
 
 
 You can install it running conda
@@ -14,8 +15,6 @@ You can install it running conda
 Usage:
 
     >>> import mimicLOB as mL
-    >>> strategy = {...}
-    >>> be.runBacktest(strategy)
     >>> 
 
 Ce code est sous licence MIT License.

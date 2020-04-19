@@ -8,6 +8,7 @@ from .ordertree import OrderTree
 import pandas as pd
 import time
 from .orderlist import OrderList
+import requests
 class OrderBook(object):
     def __init__(self,  **kwargs):
         
@@ -17,17 +18,20 @@ class OrderBook(object):
         b_tape_LOB  = kwargs['b_tape_LOB'] if 'b_tape_LOB' in kwargs else True
         verbose  = kwargs['verbose'] if 'verbose' in kwargs else True
         
+        # LOB running on a server ?
+        self._distant = kwargs['distant'] if 'distant' in kwargs else False
+
         # Basic properties of the LOB
-        self._name = 'LOB'
+        self._name      = 'LOB'
         self._tick_size = Decimal(tick_size)
 
         # Tapes
-        self.tape = deque(maxlen=None) # Transaction tape, Index[0] is most recent trade
-        self._LOBtape = deque(maxlen=None) # lob tape, is most recent trade
+        self.tape       = deque(maxlen=None) # Transaction tape, Index[0] is most recent trade
+        self._LOBtape   = deque(maxlen=None) # lob tape, is most recent trade
 
         self._pricetape = []
-        self._qttytape = []
-        self._tstape = []
+        self._qttytape  = []
+        self._tstape    = []
 
         # Trees of asks & bids
         self._bids = OrderTree()
@@ -40,7 +44,11 @@ class OrderBook(object):
         self._last_timestamp = 0
         self._time = 0
 
+        
+
         # Agent list : agents in this list are notified when trades are executed
+        # if the lob is running on a server, this will contain agents' server
+        # fix servers addresses
         self._agentList = {}
 
         # Countings
@@ -68,7 +76,6 @@ class OrderBook(object):
     @property
     def b_auction(self):
         return self._b_auction
-    
     @property
     def maxEntries(self):
         return self._maxEntries
@@ -281,7 +288,10 @@ class OrderBook(object):
             self.process_order = self.process_order_during_continuous_trading
 
     def addAgent(self, agent):
-        self.agentList[agent.id] = agent
+        if type(agent)==dict:
+            self.agentList[agent['id']] = agent['address'] #fix address
+        else:
+            self.agentList[agent.id] = agent
 
     def removeAgent(self, agent):
         del self.agentList[agent.id]
@@ -304,23 +314,53 @@ class OrderBook(object):
 
     def notify_cancelation(self, side, trader_id, order_id):
         if trader_id in self.agentList:
-            self.agentList[trader_id].notify_order_cancelation(side, order_id)
+            if self._distant: # ping the agent's fix server
+                params = {'side'      : side,
+                          'order_id'  : order_id}
+                return requests.get(f"{self.agentList[trader_id]}/notify_cancelation",
+                                        json=params).json()
+            else:
+                self.agentList[trader_id].notify_order_cancelation(side, order_id)
 
     def notify_modification(self, order_update):
         trader_id = order_update['trader_id']
         if trader_id in self.agentList:
-            self.agentList[trader_id].notify_order_modification(order_update)
+            if self._distant: # ping the agent's fix server
+                return requests.get(f"{self.agentList[trader_id]}/notify_order_modification",
+                                        json=order_update).json()
+            else:
+                self.agentList[trader_id].notify_order_modification(order_update)
 
     def notify_agents(self, trades, order_in_book):
         if order_in_book:
             if order_in_book['trader_id'] in self.agentList:
-                self.agentList[order_in_book['trader_id']].notify_orders_in_book(order_in_book)
+                if self._distant: # ping the agent's fix server
+                    trader_id = order_in_book['trader_id']
+                    return requests.get(f"{self.agentList[trader_id]}/notify_orders_in_book",
+                                            json=order_in_book).json()
+                else:
+                    self.agentList[order_in_book['trader_id']].notify_orders_in_book(order_in_book)
         if trades:
             for trade in trades:
                 if trade['party1_id'] in self.agentList:
-                    self.agentList[trade['party1_id']].notify_trades(trade)
+                    if self._distant: # ping the agent's fix server
+                        trader_id = trade['party1_id']
+                        params = {'trade' : trade,
+                                  'check_pending' : None}
+                        return requests.get(f"{self.agentList[trader_id]}/notify_trades",
+                                                json=params).json()
+                    else:
+                        self.agentList[trade['party1_id']].notify_trades(trade)
+
                 elif trade['party2_id'] in self.agentList:
-                    self.agentList[trade['party2_id']].notify_trades(trade, False)
+                    if self._distant: # ping the agent's fix server
+                        trader_id = trade['party2_id']
+                        params = {'trade' : trade,
+                                  'check_pending' : False}
+                        return requests.get(f"{self.agentList[trader_id]}/notify_trades",
+                                                json=params).json()
+                    else:
+                        self.agentList[trade['party2_id']].notify_trades(trade, False)
 
 
     def process_order_during_auction(self, quote):

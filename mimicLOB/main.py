@@ -23,7 +23,7 @@ import sys
 # Global variables for the simulator
 #################################################################
 sched = BackgroundScheduler()
-order_book = OrderBook()
+order_book = OrderBook(distant=True)
 order_book.scheduler = sched
 order_book.tick_size = Decimal(1)
 agentFactory = {} # keeps references on agents
@@ -44,11 +44,11 @@ paused = bl()
 #################################################################
 # Configuration of the simulator
 #################################################################
-global SimulatorConfiguration
-import simulationConfigs.randomConfig as configModule
-SimulatorConfiguration = configModule.get_config(order_book=order_book,
-                                                 sched = sched,
-                                                 newsChannel = newsChannel)
+# global SimulatorConfiguration
+# import simulationConfigs.randomConfig as configModule
+# SimulatorConfiguration = configModule.get_config(order_book=order_book,
+#                                                  sched = sched,
+#                                                  newsChannel = newsChannel)
 
 
 def getInstance(module, defObject, **kwargs):
@@ -60,59 +60,59 @@ def getInstance(module, defObject, **kwargs):
 # Create the Flask app
 app = Flask(__name__)
  
-def launchNews():
-    #############################
-    # configs
-    #############################
-    config_news = SimulatorConfiguration['information']
+# def launchNews():
+#     #############################
+#     # configs
+#     #############################
+#     config_news = SimulatorConfiguration['information']
 
-    #############################
-    # Information
-    #############################
-    for info in config_news:
-        newsFactory[info] = getInstance('information', config_news[info])
+#     #############################
+#     # Information
+#     #############################
+#     for info in config_news:
+#         newsFactory[info] = getInstance('information', config_news[info])
 
-    #############################
-    # Start Actions
-    #############################
-    for news in newsFactory:
-        newsFactory[news].act()
+#     #############################
+#     # Start Actions
+#     #############################
+#     for news in newsFactory:
+#         newsFactory[news].act()
     
-    return None
+#     return None
 
-def launchAgents():
-    #############################
-    # configs
-    #############################
-    config_agents = SimulatorConfiguration['agents']
+# def launchAgents():
+#     #############################
+#     # configs
+#     #############################
+#     config_agents = SimulatorConfiguration['agents']
 
-    #############################
-    # Agents
-    #############################
-    for agent in config_agents:
-        agentFactory[agent] = getInstance('internalAgent', config_agents[agent])        
+#     #############################
+#     # Agents
+#     #############################
+#     for agent in config_agents:
+#         agentFactory[agent] = getInstance('internalAgent', config_agents[agent])        
 
-    #############################
-    # Start Actions
-    #############################
-    # First agents
-    for agent in agentFactory:
-        agentFactory[agent].act()
+#     #############################
+#     # Start Actions
+#     #############################
+#     # First agents
+#     for agent in agentFactory:
+#         agentFactory[agent].act()
 
-    paused.paused = False
-    return None
+#     paused.paused = False
+#     return None
 
 
-def stopAgents():
-    # Agents stops their jobs
-    for agent in agentFactory:
-        agentFactory[agent].stop()
-    paused.paused = True
+# def stopAgents():
+#     # Agents stops their jobs
+#     for agent in agentFactory:
+#         agentFactory[agent].stop()
+#     paused.paused = True
 
-def stopNews():
-    # Info generators stops their jobs
-    for news in newsFactory:
-        newsFactory[news].stop()
+# def stopNews():
+#     # Info generators stops their jobs
+#     for news in newsFactory:
+#         newsFactory[news].stop()
     
 
 
@@ -122,6 +122,19 @@ def stopNews():
 # SERVER APP ROUTES
 ###############################################
 ####################################################
+@app.route("/liveLOB")
+def liveLOB():
+    return render_template("liveLOB.html", LiveLOB=order_book.to_html())
+
+@app.route("/histoLOB")
+def histoLOB():
+    return render_template("histoLOB.html")
+
+@app.route("/Logs")
+def Logs():
+    sys.stdout.flush()
+    return render_template("Logs.html")
+
 @app.route('/chart-NEWS')
 def chart_news():
     if not paused.paused :
@@ -178,7 +191,6 @@ def chart_prices_ask():
         return Response(plotLivePrices(), mimetype='text/event-stream')
     else:
         return None
-
 
 @app.route('/chart-histo')
 def chart_histo():
@@ -239,22 +251,25 @@ def chart_LOB():
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global i
-    from random import randint, randrange
+    # from random import randint, randrange
+    # if 'Start' in request.form:
+    #     i = 0
+    #     launchNews()
+    #     launchAgents()
+    # elif 'Stop' in request.form:
+    #     stopAgents()
+    #     stopNews()
+    return render_template("index.html")
+    # return render_template("index.html", ConfigurationAddress = hex(id(SimulatorConfiguration)),
+    #                                      LOBAddress = hex(id(order_book)),                                         
+    #                                      AgentConfiguration=pd.DataFrame(data=SimulatorConfiguration['agents']).T.fillna("").to_html(),
+    #                                      NewsConfiguration=pd.DataFrame(data=SimulatorConfiguration['information']).T.fillna("").to_html())
 
-    if 'Start' in request.form:
-        i = 0
-        launchNews()
-        launchAgents()
-    elif 'Stop' in request.form:
-        stopAgents()
-        stopNews()
-      
-    return render_template("index.html", ConfigurationAddress = hex(id(SimulatorConfiguration)),
-                                         LOBAddress = hex(id(order_book)),                                         
-                                         AgentConfiguration=pd.DataFrame(data=SimulatorConfiguration['agents']).T.fillna("").to_html(),
-                                         NewsConfiguration=pd.DataFrame(data=SimulatorConfiguration['information']).T.fillna("").to_html())
-
-
+####################################################
+###############################################
+# Accessors to LOB 
+###############################################
+####################################################
 @app.route('/getTransactionTape')
 def getgetTransactionTape():
     TransactionTape = pd.DataFrame({i: [tapeitem['time'],
@@ -314,7 +329,6 @@ def cancelOrder():
     order_book.cancel_order(side, id_)
     return jsonify({'status': 'CANCELED'})
 
-
 @app.route('/get_volume_at_price')
 def get_volume_at_price():
     params= request.get_json()
@@ -323,7 +337,6 @@ def get_volume_at_price():
     result = order_book.get_volume_at_price(side, price)
     return jsonify({'volume': result})
 
-
 @app.route('/sendOrder')
 def sendOrder():
     order = request.get_json()
@@ -331,7 +344,6 @@ def sendOrder():
     return jsonify({'status': 'SENT', 
                     'trades' : trades, 
                     'pendingOrders':pendingOrders})
-    
 
 @app.route('/modifyOrder')
 def modifyOrder():
@@ -343,13 +355,10 @@ def modifyOrder():
     
     return jsonify({'status': 'ORDER MODIFIED'})
 
-
-
 @app.route("/reset")
 def reset():
     order_book.reset()
     return jsonify({'status': 'DONE'})
-
 
 @app.route("/resetLOB")
 def resetLOB():
@@ -366,18 +375,10 @@ def stopNews_():
     stopNews()
     return jsonify({'status': 'DONE'})
 
-
-@app.route("/liveLOB")
-def liveLOB():
-    return render_template("liveLOB.html", LiveLOB=order_book.to_html())
-
-@app.route("/histoLOB")
-def histoLOB():
-    return render_template("histoLOB.html")
-
-@app.route("/Logs")
-def Logs():
-    sys.stdout.flush()
+@app.route("/addAgent2LOB")
+def addAgent2LOB():
+    params = request.get_json()
+    order_book.addAgent(params)
     return render_template("Logs.html")
 
 @app.route('/Interact', methods=['GET', 'POST'])
