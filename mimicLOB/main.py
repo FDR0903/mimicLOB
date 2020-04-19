@@ -379,7 +379,7 @@ def stopNews_():
 def addAgent2LOB():
     params = request.get_json()
     order_book.addAgent(params)
-    return render_template("Logs.html")
+    return jsonify({'status': 'DONE'})
 
 @app.route('/Interact', methods=['GET', 'POST'])
 def Interact():
