@@ -6,7 +6,7 @@ from information.channel import Channel
 from pprint import pprint, pformat
 from decimal import Decimal
 import datetime
-from apscheduler.schedulers.background import BackgroundScheduler
+# from apscheduler.schedulers.background import BackgroundScheduler
 import time
 import json
 import importlib
@@ -22,13 +22,13 @@ import sys
 #################################################################
 # Global variables for the simulator
 #################################################################
-sched = BackgroundScheduler()
+# sched = BackgroundScheduler()
 order_book = OrderBook(distant=True)
-order_book.scheduler = sched
+# order_book.scheduler = sched
 order_book.tick_size = Decimal(1)
 agentFactory = {} # keeps references on agents
 newsFactory = {} # keeps references on informations
-sched.start()
+# sched.start()
 newsChannel = Channel()
 #################################################################
 
