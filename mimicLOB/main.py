@@ -11,6 +11,10 @@ import time
 import json
 import importlib
 import pandas as pd
+import socketio
+
+# create a Socket.IO server
+sio = socketio.Server()
 
 #################################################################
 # logs
@@ -23,9 +27,12 @@ import sys
 # Global variables for the simulator
 #################################################################
 # sched = BackgroundScheduler()
-order_book = OrderBook(distant=True)
+order_book = OrderBook(distant=True,
+                       tick_size = Decimal(1),
+                       b_tape = True,
+                       b_tape_LOB = False,
+                       verbose = True)
 # order_book.scheduler = sched
-order_book.tick_size = Decimal(1)
 agentFactory = {} # keeps references on agents
 newsFactory = {} # keeps references on informations
 # sched.start()
@@ -304,6 +311,12 @@ def getbestbid():
 @app.route('/getbestask')
 def getbestask():
     return jsonify({'bestask' : order_book.get_best_ask()})
+
+@app.route('/setticksize')
+def setticksize():
+    ticksize= request.get_json()['ticksize']
+    order_book.tick_size = ticksize
+    return jsonify({'status' : 'DONE'})
 
 @app.route('/getticksize')
 def getticksize():

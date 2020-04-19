@@ -17,6 +17,7 @@ from random import randint, randrange
 from apscheduler.schedulers.background import BackgroundScheduler
 from decimal import Decimal
 import requests
+from sortedcontainers import SortedDict
 
 class basicMM(genericAgent):
     def __init__(self, **kwargs):
@@ -24,6 +25,14 @@ class basicMM(genericAgent):
         self.JobSO = None
         self.JobCO = None
         self.nbOfTicksForCancelation = 10 if 'nbOfTicksForCancelation' not in self.dict_params else self.dict_params['nbOfTicksForCancelation']
+
+        self.myOrders = SortedDict() # only for random agent that must keep track of his orders
+        self._i_myorders = -1
+    
+    @property
+    def i_myorders(self):
+        self._i_myorders += 1
+        return self._i_myorders
 
     #verify parameters ?
     def sendOrders(self):
@@ -41,15 +50,22 @@ class basicMM(genericAgent):
             self.send_buy_limit_order(HalfQuantity, RefPrice-2*ticksize)
             self.send_sell_limit_order(Quantity, RefPrice+ticksize)
             self.send_sell_limit_order(HalfQuantity, RefPrice+2*ticksize)
+
+            self.myOrders[self.i_myorders] = {'side' :'bid', 'price' : RefPrice-ticksize}
+            self.myOrders[self.i_myorders] = {'side' :'bid', 'price' : RefPrice-2*ticksize}
+            self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : RefPrice+ticksize}
+            self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : RefPrice+2*ticksize}
         elif bestask is None:
             # if self.lastTradePrice == 0:
             self.send_sell_limit_order(Quantity, bestbid+ticksize)
             self.send_sell_limit_order(HalfQuantity, bestbid+2*ticksize)
-            
+            self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : bestbid+ticksize}
+            self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : bestbid+2*ticksize}
         elif bestbid is None:
             self.send_buy_limit_order(Quantity, bestask-ticksize)
             self.send_buy_limit_order(HalfQuantity, bestask-2*ticksize)
-
+            self.myOrders[self.i_myorders] = {'side' :'bid', 'price' : bestask-ticksize}
+            self.myOrders[self.i_myorders] = {'side' :'bid', 'price' : bestask-2*ticksize}
         else:
             # Control the spread with last trade price
             if bestask - bestbid > ticksize:
@@ -61,9 +77,12 @@ class basicMM(genericAgent):
                 if lastlastTradeSign=='bid':
                     qtty = self.get_volume_at_price('ask', bestask)
                     self.send_buy_limit_order(qtty, lastTradePrice)
+                    self.myOrders[self.i_myorders] = {'side' :'bid', 'price' : lastTradePrice}
+
                 else:
                     qtty = self.get_volume_at_price('bid', bestbid)
                     self.send_sell_limit_order(qtty, lastTradePrice)
+                    self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : lastTradePrice}
                 
                 # add liquidity
                 if (lastTradePrice-bestbid > bestask-lastTradePrice): 
@@ -71,12 +90,15 @@ class basicMM(genericAgent):
                     i = 1
                     while bestbid+i*ticksize <= bestask:
                         self.send_buy_limit_order(Quantity, bestbid+i*ticksize)
+                        self.myOrders[self.i_myorders] = {'side' :'bid', 'price' : bestbid+i*ticksize}
                         i += 1   
                 elif (lastTradePrice-bestbid < bestask-lastTradePrice):
                     # post asks
                     i = 0
                     while bestask-i*ticksize > bestbid:
                         self.send_sell_limit_order(Quantity, bestask-i*ticksize)
+                        self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : bestask-i*ticksize}
+                        
                         i += 1   
                 # else:
                     
@@ -96,11 +118,11 @@ class basicMM(genericAgent):
     def cancelFarAwayOrders(self):
         try:
             tickSize = self.getTickSize()
-            keys_ = self.pendingorders.keys()
+            keys_ = self.myOrders.keys()
             nbTicks = self.nbOfTicksForCancelation 
 
             for key_ in list(keys_): # transformed to list on purpose
-                order = self.pendingorders[key_]
+                order = self.myOrders[key_]
                 
                 # if they are executed    
                 #if they too far away

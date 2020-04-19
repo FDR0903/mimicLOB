@@ -18,27 +18,30 @@ import requests
 import time
 import pandas as pd
 import sys
-from .FIXserver import FIXserver
+from pyngrok import ngrok
 
 class genericAgent(ABC):
     def __init__(self, **kwargs):
         self.__dict_params = kwargs 
 
-        # Client/Server or direct
-        self._distant = self.__dict_params['distant'] if 'distant' in self.__dict_params else False
-        if self._distant:
-            self._server = self.__dict_params['server'] # lob server
-            # self._fixserver = FIXserver(self, self.__dict_params['FIXport'])
-        else:
-            self._orderbook = self.__dict_params['orderbook']
-
+       
         # Personal book
         self._b_record = self.__dict_params['b_record'] if 'b_record' in self.__dict_params else False
         self._executedtrades = SortedDict()
         self._sentorders = SortedDict()
         self._pendingorders = SortedDict()
-        self._book = SortedDict()
-        self._trades = SortedDict()
+        # self._book = SortedDict()
+        # self._trades = SortedDict()
+
+         # Client/Server or direct
+        self._distant = self.__dict_params['distant'] if 'distant' in self.__dict_params else False
+        if self._distant:
+            self._server = self.__dict_params['server'] # lob server
+            if self._b_record:  
+                self._fixserver = ngrok.connect(self.__dict_params['FIXaddress'])
+
+        else:
+            self._orderbook = self.__dict_params['orderbook']
 
         # Personal ID
         self._id = self.__dict_params['id'] if 'id' in self.__dict_params else 'generic'
@@ -54,10 +57,12 @@ class genericAgent(ABC):
     def addAgent2LOB(self, agent):
         if self.distant:
             params = {'id' : self._id,
-                      'address' : '', #self._fixserver.getAddress()
+                      'address' : self._fixserver,
             }
+            requests.get(f"{self._fixserver}/setid",
+                            json={'id':self.id})
             requests.get(f"{self.server}/addAgent2LOB",
-                            json=params).json()['bestbid']
+                            json=params).json()['status']
         else:
             self.orderbook.addAgent(agent)
 
@@ -95,11 +100,17 @@ class genericAgent(ABC):
 
     @property
     def pendingorders(self):
-        return self._pendingorders
+        if self.distant:
+            return requests.get(f"{self._fixserver}/pendingorders").json()['pendingorders']
+        else:
+            return self._pendingorders
 
     @property
     def executedtrades(self):
-        return self._executedtrades
+        if self.distant:
+            return requests.get(f"{self._fixserver}/executedtrades").json()['executedtrades']
+        else:
+            return self._executedtrades
         
     @property
     def dict_params(self):
@@ -111,11 +122,14 @@ class genericAgent(ABC):
 
     @property
     def sentorders(self):
-        return self._sentorders
+        if self.distant:
+            return requests.get(f"{self._fixserver}/sentorders").json()['sentorders']
+        else:
+            return self._sentorders
 
-    @property
-    def trades(self):
-        return self._trades
+    # @property
+    # def trades(self):
+        # return self._trades
 
     """
     SETTERS
@@ -282,12 +296,18 @@ class genericAgent(ABC):
 
     # This method is called by an LOB to notify that an order has been executed !
     def notify_orders_in_book(self, pendingOrder):
-        if pendingOrder is not None:
+        if pendingOrder:
             self.pendingorders[pendingOrder['order_id']] = pendingOrder
         
     def addSentOrders(self, order):
-        if order is not None:
-            self.sentorders[self.i_orders] = order
+        if self.b_record:
+            if self.distant:
+                if order:
+                    response = requests.get(f"{self._fixserver}/addSentOrders", 
+                                                json=order).json()
+            else:
+                if order:
+                    self.sentorders[self.i_orders] = order
 
     # This method is called by an LOB to notify that an order has been executed !
     def notify_trades(self, trade, check_pending=True):
@@ -396,7 +416,11 @@ class genericAgent(ABC):
 
 
     def setLOB_tickSize(self, ticksize):
-        self.orderbook.tick_size = ticksize
+        if self.distant:
+            response = requests.get(f"{self.server}/setticksize", json={'ticksize':ticksize}).json()
+            return response['status']    
+        else:
+            self.orderbook.tick_size = ticksize
     
     def resetLOB_PendingOrders(self):
         if self.id=='market':

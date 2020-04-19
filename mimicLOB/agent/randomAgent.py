@@ -22,6 +22,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import sys
 import numpy as np
 import requests
+from sortedcontainers import SortedDict
 
 class randomAgent(genericAgent):
     def __init__(self, **kwargs):
@@ -29,15 +30,22 @@ class randomAgent(genericAgent):
         intensity = self.dict_params['intensity']
         self.PoissonPath = np.random.poisson(intensity, 1000)
         self.Pathposition = 0
+
         # self.newsChannel = self.dict_params['channel']
         self.JobSO = None # reference to the sending order job in the LOB scheduler
         self.JobCO = None # reference to the cancel order job in the LOB scheduler
         self.newsSources = None # news to which the agent listens to
 
+        self.myOrders = SortedDict() # only for random agent that must keep track of his orders
+        self._i_myorders = -1
         self.nbOfTicksForCancelation = 10 if 'nbOfTicksForCancelation' not in self.dict_params else self.dict_params['nbOfTicksForCancelation']
-
         self.newsChannel = self.dict_params['channel']
-            
+    
+    @property
+    def i_myorders(self):
+        self._i_myorders += 1
+        return self._i_myorders
+
     def getlastnews(self):
         if self.distant:
             return requests.get(f"{self.server}/getlastnews").json()['lastnews']
@@ -53,6 +61,7 @@ class randomAgent(genericAgent):
         if self.JobCO:  self.JobCO.remove()    
         self.JobSO = None
         self.JobCO = None
+
     def sendOrders(self):
         if self.Pathposition == 1000: self.Pathposition = 0
         if self.PoissonPath[self.Pathposition] == 1:
@@ -70,11 +79,12 @@ class randomAgent(genericAgent):
             
             if type_ == 'randomLimitBuyer':
                 bestask = self.getBestAsk()
-                bump = ((lastNews - 49) *2)/100 + 1      
+                bump = ((lastNews - 50) *2)/100 + 1      
                 qtty = Decimal(int(qtty*bump))
                 # post at bestask and some tick sizes randomly
-                if bestask is not None: self.send_buy_limit_order(qtty, bestask-ticksize)
-
+                if bestask is not None: 
+                    self.send_buy_limit_order(qtty, bestask-ticksize)
+                    self.myOrders[self.i_myorders] = {'side' :'bid', 'price' : bestask-ticksize}
             elif type_ == 'randomMarketBuyer':
                 bump = ((lastNews - 50) *2)/100 + 1        
                 qtty = Decimal(int(qtty*bump))
@@ -87,7 +97,7 @@ class randomAgent(genericAgent):
 
                 # post at bestask and some tick sizes randomly
                 if bestbid is not None: self.send_sell_limit_order(qtty, bestbid+Decimal(ticksize))
-
+                self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : bestbid+Decimal(ticksize)}
             elif type_ == 'randomMarketSeller':
                 bump = ((50 - lastNews) *2)/100 + 1              
                 qtty = Decimal(int(qtty*bump))
@@ -100,11 +110,11 @@ class randomAgent(genericAgent):
     def cancelFarAwayOrders(self):
         try:
             tickSize = self.getTickSize()
-            keys_ = self.pendingorders.keys()
+            keys_ = self.myOrders.keys()
             nbTicks = self.nbOfTicksForCancelation 
 
             for key_ in list(keys_): # transformed to list on purpose
-                order = self.pendingorders[key_]
+                order = self.myOrders[key_]
                 
                 # if they are executed    
                 #if they too far away

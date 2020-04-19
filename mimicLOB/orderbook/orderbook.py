@@ -307,17 +307,17 @@ class OrderBook(object):
         self.tstape = []
         self.bids = OrderTree()
         self.asks = OrderTree()
+        self._agentList = {}
 
 #########################################
 # Order Processin Methods 
 #########################################
-
     def notify_cancelation(self, side, trader_id, order_id):
         if trader_id in self.agentList:
             if self._distant: # ping the agent's fix server
                 params = {'side'      : side,
                           'order_id'  : order_id}
-                return requests.get(f"{self.agentList[trader_id]}/notify_cancelation",
+                return requests.get(f"{self.agentList[trader_id]}/notify_order_cancelation",
                                         json=params).json()
             else:
                 self.agentList[trader_id].notify_order_cancelation(side, order_id)
