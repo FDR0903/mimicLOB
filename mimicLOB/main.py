@@ -14,7 +14,7 @@ import pandas as pd
 # import socketio
 # 
 # create a Socket.IO server
-sio = socketio.Server()
+# sio = socketio.Server()
 
 #################################################################
 # logs
