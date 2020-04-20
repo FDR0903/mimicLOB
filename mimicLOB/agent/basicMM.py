@@ -98,7 +98,6 @@ class basicMM(genericAgent):
                     while bestask-i*ticksize > bestbid:
                         self.send_sell_limit_order(Quantity, bestask-i*ticksize)
                         self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : bestask-i*ticksize}
-                        
                         i += 1   
                 # else:
                     
@@ -106,7 +105,7 @@ class basicMM(genericAgent):
         #     print('I couldn t market make it bro')                
 
     def start(self, sched):
-        self.jobSO = sched.add_job(self.sendOrders, 'interval', seconds=0.0005, jitter=0.1, max_instances=1)
+        self.jobSO = sched.add_job(self.sendOrders, 'interval', seconds=0.001, jitter=0.0005, max_instances=1)
         self.JobCO = sched.add_job(self.cancelFarAwayOrders, 'interval', seconds=1, jitter=0.5, max_instances=1) 
     
     def stop(self, sched):

@@ -1,15 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-@author: fqf83
+@author: FDR
 """
-from mimicLOB import unittest1, __name__ as name
-
 #==============================================================================
 # Testing
 #==============================================================================
 def tests():
     print(unittest1()) # should be OK, not KO
 
+def unittest1():
+    import mimicLOB
+    
 if __name__ == '__main__':
     tests()
     

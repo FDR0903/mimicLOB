@@ -1,7 +1,5 @@
 from flask import Flask, render_template, request, Response, jsonify
 from orderbook.orderbook import OrderBook
-from internalAgent.randomAgent import randomAgent
-from internalAgent.basicMarketMaker import basicMarketMaker
 from information.channel import Channel
 from pprint import pprint, pformat
 from decimal import Decimal
@@ -387,6 +385,10 @@ def launchNews_():
 def stopNews_():
     stopNews()
     return jsonify({'status': 'DONE'})
+
+@app.route("/getRegistredAgents")
+def getRegistredAgents():
+    return jsonify({'status': order_book.agentList})
 
 @app.route("/addAgent2LOB")
 def addAgent2LOB():

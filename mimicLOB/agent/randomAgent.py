@@ -53,7 +53,7 @@ class randomAgent(genericAgent):
             return self.newsChannel.get_latest_news().val
 
     def start(self, sched):
-        self.jobSO = sched.add_job(self.sendOrders, 'interval', seconds=0.001, jitter=0.1, max_instances=1)
+        self.jobSO = sched.add_job(self.sendOrders, 'interval', seconds=0.005, jitter=0.001, max_instances=1)
         self.JobCO = sched.add_job(self.cancelFarAwayOrders, 'interval', seconds=1, jitter=0.5, max_instances=1) 
     
     def stop(self, sched):
@@ -82,13 +82,16 @@ class randomAgent(genericAgent):
                 bump = ((lastNews - 50) *2)/100 + 1      
                 qtty = Decimal(int(qtty*bump))
                 # post at bestask and some tick sizes randomly
-                if bestask is not None: 
+                if bestask: 
                     self.send_buy_limit_order(qtty, bestask-ticksize)
                     self.myOrders[self.i_myorders] = {'side' :'bid', 'price' : bestask-ticksize}
             elif type_ == 'randomMarketBuyer':
                 bump = ((lastNews - 50) *2)/100 + 1        
                 qtty = Decimal(int(qtty*bump))
-                self.send_buy_market_order(qtty)
+                bestask = self.getBestAsk()
+                if bestask: 
+                    self.send_buy_limit_order(qtty, bestask)
+                # self.send_buy_market_order(qtty)
 
             elif type_ == 'randomLimitSeller':
                 bump = ((50 - lastNews) *2)/100 + 1          
@@ -96,12 +99,14 @@ class randomAgent(genericAgent):
                 bestbid = self.getBestBid()
 
                 # post at bestask and some tick sizes randomly
-                if bestbid is not None: self.send_sell_limit_order(qtty, bestbid+Decimal(ticksize))
+                if bestbid: self.send_sell_limit_order(qtty, bestbid+Decimal(ticksize))
                 self.myOrders[self.i_myorders] = {'side' :'ask', 'price' : bestbid+Decimal(ticksize)}
             elif type_ == 'randomMarketSeller':
                 bump = ((50 - lastNews) *2)/100 + 1              
                 qtty = Decimal(int(qtty*bump))
-                self.send_sell_market_order(qtty)
+                bestbid = self.getBestBid()
+                if bestbid: 
+                    self.send_sell_market_order(qtty)
             else:
                 sys.exit('agent.ranndomagent.sendOrders() given a wrong type of basic random agent')
 
