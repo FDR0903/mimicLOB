@@ -40,7 +40,7 @@ class replayerAgent(genericAgent):
             if ((self.historicalOrders.loc[i, 'ACTION_TYPE'] == 'I') | (self.historicalOrders.loc[i, 'ACTION_TYPE'] == 'T')):
                 ordertype = 'market' if self.historicalOrders.loc[i, 'ORDER_TYPE']==1 else 'limit'
                 side      = 'bid' if self.historicalOrders.loc[i, 'ORDER_SIDE']=='B' else 'ask'                
-                order_id  = self.historicalOrders.loc[i, 'ORDER_ID']
+                order_id  = int(self.historicalOrders.loc[i, 'ORDER_ID'])
 
                 if ordertype=='market':
                     if side=='bid':

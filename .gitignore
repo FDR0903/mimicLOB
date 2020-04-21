@@ -10,5 +10,6 @@ __pycache__/
 *.ipynb_checkpoints
 *.pkl
 *.h5
+#*.cmd
 log*.txt
 demo/old/*

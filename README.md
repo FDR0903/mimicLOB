@@ -10,11 +10,10 @@ mimicLOB is a package for
 
 You can install it running conda
 
-    conda install mimicLOB
+    conda install -c fdr0903 mimiclob
 
 Usage:
-
-    >>> import mimicLOB as mL
-    >>> 
+    >>> import mimicLOB as mLOB
+    >>>
 
 Ce code est sous licence MIT License.

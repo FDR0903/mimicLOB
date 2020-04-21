@@ -346,7 +346,7 @@ class OrderBook(object):
                     if self._distant: # ping the agent's fix server
                         trader_id = trade['party1_id']
                         params = {'trade' : trade,
-                                  'check_pending' : None}
+                                  'check_pending' : True}
                         return requests.get(f"{self.agentList[trader_id]}/notify_trades",
                                                 json=params).json()
                     else:

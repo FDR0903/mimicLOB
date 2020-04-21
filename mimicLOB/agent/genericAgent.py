@@ -18,7 +18,8 @@ import requests
 import time
 import pandas as pd
 import sys
-from pyngrok import ngrok
+from ..server import ngrok
+from decimal import Decimal
 
 class genericAgent(ABC):
     def __init__(self, **kwargs):
@@ -27,6 +28,7 @@ class genericAgent(ABC):
        
         # Personal book
         self._b_record = self.__dict_params['b_record'] if 'b_record' in self.__dict_params else False
+        self._usengrok = self.__dict_params['usengrok'] if 'usengrok' in self.__dict_params else False
         self._executedtrades = SortedDict()
         self._sentorders = SortedDict()
         self._pendingorders = SortedDict()
@@ -38,7 +40,12 @@ class genericAgent(ABC):
         if self._distant:
             self._server = self.__dict_params['server'] # lob server
             if self._b_record:  
-                self._fixserver = ngrok.connect(self.__dict_params['FIXaddress'])
+                if self._usengrok:
+                    self._fixserver = ngrok.connect(self.__dict_params['FIXaddress'])
+                else:
+                    self._fixserver = self.__dict_params['FIXaddress']
+                    if self._fixserver[-1] == '/':
+                        self._fixserver = self._fixserver[:-1]
 
         else:
             self._orderbook = self.__dict_params['orderbook']
@@ -422,6 +429,16 @@ class genericAgent(ABC):
         else:
             self.orderbook.tick_size = ticksize
     
+    def setLOB_b_auction(self, b_auction):
+        if self.id == 'market':
+            if self.distant:
+                response = requests.get(f"{self.server}/setb_auction",
+                                        json = {'b_auction' : b_auction}).json()
+                return response['status']              
+            else:
+                self.orderbook.b_auction = b_auction
+        else:
+            return 'Only the market can reset the LOB'
     def resetLOB_PendingOrders(self):
         if self.id=='market':
             if self.distant:
