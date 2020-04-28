@@ -366,7 +366,8 @@ class OrderBook(object):
     def process_order_during_auction(self, quote):
         order_type = quote['type']
         order_in_book = None
-        quote['timestamp'] = self.time
+        if 'timestamp' not in quote:
+            quote['timestamp'] = self.time
 
         if quote['quantity'] <= 0:
             sys.exit('process_order() given order of quantity <= 0')
@@ -409,13 +410,13 @@ class OrderBook(object):
     def process_order_during_continuous_trading(self, quote):
         order_type = quote['type']
         order_in_book = None
-        quote['timestamp'] = self.time
+        if 'timestamp' not in quote:
+            quote['timestamp'] = self.time
 
         if quote['quantity'] <= 0:
             sys.exit('process_order() given order of quantity <= 0')
 
         if order_type == 'market':
-
             # Tape LOB state before processing order : 
             if self.b_tape_LOB:
                 self.LOBtape.append(self.getCurrentLOB('market', 'MO', quote))
@@ -634,7 +635,8 @@ class OrderBook(object):
 
         side = order_update['side']
         order_update['order_id'] = order_id
-        order_update['timestamp'] = self.time
+        if 'timestamp' not in order_update:
+            order_update['timestamp'] = self.time
 
         # Tape LOB state before processing order : 
         if self.b_tape_LOB:
@@ -682,34 +684,34 @@ class OrderBook(object):
             sys.exit('modify_order() given neither "bid" nor "ask"')
 
 
-    def modify_order_old(self, order_id, order_update):
-        if self.verbose:
-            print(f'\n**** I received this modify order **** \n: {str(order_id)}')
+    # def modify_order_old(self, order_id, order_update):
+    #     if self.verbose:
+    #         print(f'\n**** I received this modify order **** \n: {str(order_id)}')
                 
-        side = order_update['side']
-        order_update['order_id'] = order_id
-        order_update['timestamp'] = self.time
+    #     side = order_update['side']
+    #     order_update['order_id'] = order_id
+    #     order_update['timestamp'] = self.time
 
-        # Tape LOB state before processing order : 
-        if self.b_tape_LOB:
-            self.LOBtape.append(self.getCurrentLOB('limit', 'modify', order_update))
+    #     # Tape LOB state before processing order : 
+    #     if self.b_tape_LOB:
+    #         self.LOBtape.append(self.getCurrentLOB('limit', 'modify', order_update))
 
-        if side == 'bid':
-            if self.bids.order_exists(order_update['order_id']):
-                self.bids.update_order(order_update)
+    #     if side == 'bid':
+    #         if self.bids.order_exists(order_update['order_id']):
+    #             self.bids.update_order(order_update)
 
-                # self.notify_modification(order_id, order_update)
-            else:
-                if self.verbose:
-                    print(f'\n**** Order modification Error : order does not exist **** \n: {str(order_id)}')
-        elif side == 'ask':
-            if self.asks.order_exists(order_update['order_id']):
-                self.asks.update_order(order_update)
-            else:
-                if self.verbose:
-                    print(f'\n**** Order modification Error : order does not exist **** \n: {str(order_id)}')
-        else:
-            sys.exit('modify_order() given neither "bid" nor "ask"')
+    #             # self.notify_modification(order_id, order_update)
+    #         else:
+    #             if self.verbose:
+    #                 print(f'\n**** Order modification Error : order does not exist **** \n: {str(order_id)}')
+    #     elif side == 'ask':
+    #         if self.asks.order_exists(order_update['order_id']):
+    #             self.asks.update_order(order_update)
+    #         else:
+    #             if self.verbose:
+    #                 print(f'\n**** Order modification Error : order does not exist **** \n: {str(order_id)}')
+    #     else:
+    #         sys.exit('modify_order() given neither "bid" nor "ask"')
 
 #########################################
 # Order Book state information 

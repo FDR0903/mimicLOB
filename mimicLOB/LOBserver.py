@@ -298,6 +298,10 @@ def getgetTransactionTape():
 def getPriceTape():
     return jsonify({'PriceTape' : order_book.pricetape})
 
+@app.route('/getLOBTape')
+def getLOBTape():
+    return jsonify({'LOBTape' : order_book.LOBtape})
+
 @app.route('/getLOBstate')
 def getLOBstate():
     return jsonify({'LOBstate' : order_book.getLOBstate().to_json() })

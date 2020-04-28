@@ -8,8 +8,8 @@ __pycache__/
 #__pycache__/
 .spyproject/
 *.ipynb_checkpoints
-*.pkl
+# *.pkl
 *.h5
-#*.cmd
+*.cmd
 log*.txt
 demo/old/*

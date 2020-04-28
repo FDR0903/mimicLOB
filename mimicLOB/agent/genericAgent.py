@@ -177,6 +177,9 @@ class genericAgent(ABC):
         if order_id:
             sellorder['order_id'] = order_id
         
+        if timestamp:
+            sellorder['timestamp'] = timestamp
+
         if self.distant:
             response = requests.get(f"{self.server}/sendOrder", 
                                         json=sellorder).json()
@@ -191,17 +194,20 @@ class genericAgent(ABC):
         return 'SENT'
 
 
-    def send_buy_limit_order(self, quantity, price, order_id=None):
+    def send_buy_limit_order(self, quantity, price, order_id=None, timestamp=None):
         # get best ask price, and post randomly between the price and -spread
         #bestask = self.orderbook.get_best_ask()
         buyorder =  {'type'      : 'limit', 
                      'side'      : 'bid', 
-                      'quantity'  : quantity,
-                      'price'     : price,
-                      'trader_id' : self.id}
+                     'quantity'  : quantity,
+                     'price'     : price,
+                     'trader_id' : self.id}
         
         if order_id:
             buyorder['order_id'] = order_id
+
+        if timestamp:
+            buyorder['timestamp'] = timestamp
 
         if self.distant:
             response = requests.get(f"{self.server}/sendOrder", 
@@ -257,12 +263,15 @@ class genericAgent(ABC):
         # Should process 
         return 'SENT'
 
-    def modifyOrder(self, side, order_id, new_price, new_quantity):
+    def modifyOrder(self, side, order_id, new_price, new_quantity, timestamp=None):
         order_update = {'type'      : 'limit', 
                         'side'      : side, 
                         'quantity'  : new_quantity,
                         'price'     : new_price,
                         'trader_id' : self.id}
+
+        if timestamp:
+            order_update['timestamp'] = timestamp
 
         if self.distant:
             params = {}
@@ -368,7 +377,6 @@ class genericAgent(ABC):
     def getPriceTape(self):
         if self.distant:
             histoPrices = requests.get(f"{self.server}/getPriceTape",).json()['PriceTape']
-
         else:
             histoPrices = self.orderbook.pricetape
 
@@ -378,17 +386,19 @@ class genericAgent(ABC):
 
     def getLOBTape(self):
         if self.distant:
-            LOBtape = requests.get(f"{self.server}/getLOBTape",).json()['PriceTape']
-            return pd.read_json(LOBtape)      
+            LOBtape = requests.get(f"{self.server}/getLOBTape",).json()['LOBTape']
+            LOBtape = pd.DataFrame({i: tapeitem for (i, tapeitem) in enumerate(LOBtape)}).T
         else:
             LOBtape = pd.DataFrame({i: tapeitem for (i, tapeitem) in enumerate(self.orderbook.LOBtape)}).T
-            cols = ['TIME', 'ORDER_ID', 'PRICE', 'QTY', 'ORDER_SIDE', 'ORDER_TYPE', 'ACTION_TYPE']
+            
+        cols = ['TIME', 'ORDER_ID', 'PRICE', 'QTY', 'ORDER_SIDE', 'ORDER_TYPE', 'ACTION_TYPE']
 
-            for i in range(self.orderbook.maxEntries-1, -1, -1):
-                cols += [f'BID{i}', f'BID_QTY{i}']
-            for i in range(self.orderbook.maxEntries):
-                cols += [f'ASK{i}', f'ASK_QTY{i}'] 
-            LOBtape.columns = cols              
+        for i in range(self.orderbook.maxEntries-1, -1, -1):
+            cols += [f'BID{i}', f'BID_QTY{i}']
+        for i in range(self.orderbook.maxEntries):
+            cols += [f'ASK{i}', f'ASK_QTY{i}'] 
+        LOBtape.columns = cols         
+
         return LOBtape
 
     def getLOBState(self):
@@ -408,12 +418,25 @@ class genericAgent(ABC):
         else:
             return self.orderbook.tick_size
 
+    def getMidPrice(self):
+        try:
+            midPrice = (self.getBestAsk() + self.getBestBid())/2
+        except:
+            midPrice = None
+        return midPrice
+
     def getBestAsk(self):
         if self.distant:
             return requests.get(f"{self.server}/getbestask").json()['bestask']
         else:
             return self.orderbook.get_best_ask() 
     
+    def getVolumeAtPrice(self, side, price):
+        if self.distant:
+            return requests.get(f"{self.server}/getVolumeAtPrice").json()['volume']
+        else:
+            return self.orderbook.get_volume_at_price(side, price)
+
     def getBestBid(self):
         if self.distant:
             return requests.get(f"{self.server}/getbestbid").json()['bestbid']
