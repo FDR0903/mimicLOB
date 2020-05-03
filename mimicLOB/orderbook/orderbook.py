@@ -43,7 +43,7 @@ class OrderBook(object):
         self._last_tick = None
         self._last_timestamp = 0
         self._time = 0
-
+        self._last_order_timestamp = 0
         
 
         # Agent list : agents in this list are notified when trades are executed
@@ -135,7 +135,13 @@ class OrderBook(object):
     def time(self):
         self._time = time.time_ns()
         return self._time
+    @property
+    def last_order_timestamp(self):
+        return self._last_order_timestamp
 
+    @last_order_timestamp.setter
+    def last_order_timestamp(self, last_order_timestamp):
+        self._last_order_timestamp = last_order_timestamp
     @maxEntries.setter
     def maxEntries(self, maxEntries):
         self._maxEntries = maxEntries
@@ -369,6 +375,8 @@ class OrderBook(object):
         if 'timestamp' not in quote:
             quote['timestamp'] = self.time
 
+        self._last_order_timestamp = quote['timestamp']
+
         if quote['quantity'] <= 0:
             sys.exit('process_order() given order of quantity <= 0')
 
@@ -413,6 +421,7 @@ class OrderBook(object):
         if 'timestamp' not in quote:
             quote['timestamp'] = self.time
 
+        self._last_order_timestamp = quote['timestamp']
         if quote['quantity'] <= 0:
             sys.exit('process_order() given order of quantity <= 0')
 
@@ -716,6 +725,24 @@ class OrderBook(object):
 #########################################
 # Order Book state information 
 #########################################
+    # for market makers
+    def get_head_order_at_price(self, side, price):
+        price = Decimal(price)
+        if side == 'bid':
+            order = None
+            if self.bids.price_exists(price):
+                order = self.bids.get_price_list(price).tail_order
+            return order
+        elif side == 'ask':
+            order = None
+            if self.asks.price_exists(price):
+                order = self.asks.get_price_list(price).tail_order
+            return order
+        else:
+            sys.exit('get_head_order_at_price() given neither "bid" nor "ask"')
+
+
+
     def get_volume_at_price(self, side, price):
         price = Decimal(price)
         if side == 'bid':

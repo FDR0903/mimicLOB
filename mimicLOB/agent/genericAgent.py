@@ -145,6 +145,13 @@ class genericAgent(ABC):
     def dict_params(self, dict_params):
         self.__dict_params = dict_params
 
+    @id.setter
+    def id(self, dict_params):
+        self._id = id
+
+    @orderbook.setter
+    def orderbook(self, orderbook):
+        self._orderbook = orderbook
 
     """
     Abstract methods
@@ -424,6 +431,12 @@ class genericAgent(ABC):
         except:
             midPrice = None
         return midPrice
+
+    def getLastOrderTimestamp(self):
+        if self.distant:
+            return requests.get(f"{self.server}/getLastOrderTimestamp").json()['LastOrderTimestamp']
+        else:
+            return self.orderbook.last_order_timestamp
 
     def getBestAsk(self):
         if self.distant:
