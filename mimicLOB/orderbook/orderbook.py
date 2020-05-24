@@ -9,6 +9,8 @@ import pandas as pd
 import time
 from .orderlist import OrderList
 import requests
+
+
 class OrderBook(object):
     def __init__(self,  **kwargs):
         
@@ -133,7 +135,9 @@ class OrderBook(object):
         return self._next_order_id
     @property
     def time(self):
-        self._time = time.time_ns()
+        # self._time = time.time_ns()
+        self._time = self._last_order_timestamp + 1
+        # print('j ai fait appel à time')
         return self._time
     @property
     def last_order_timestamp(self):
@@ -261,11 +265,13 @@ class OrderBook(object):
                 
 
                 for order in execPrice_bid_orderlist:
+                    # TODO : Should handle the timestamp (not self.time automatically)
+                    quote =  {'order_id' : order.order_id,
+                              'trader_id': order.trader_id}
                     quantity_to_trade, new_trades = self.process_order_list('ask', 
                                                                     execPrice_ask_orderlist, 
                                                                     order.quantity,
-                                                                    {'order_id' : order.order_id,
-                                                                     'trader_id': order.trader_id})
+                                                                    quote)
                 self.bids.remove_price(execPrice)
             else:
                 print(self.bids.price_map[execPrice])
@@ -358,7 +364,7 @@ class OrderBook(object):
                     else:
                         self.agentList[trade['party1_id']].notify_trades(trade)
 
-                elif trade['party2_id'] in self.agentList:
+                if trade['party2_id'] in self.agentList:
                     if self._distant: # ping the agent's fix server
                         trader_id = trade['party2_id']
                         params = {'trade' : trade,
@@ -374,6 +380,8 @@ class OrderBook(object):
         order_in_book = None
         if 'timestamp' not in quote:
             quote['timestamp'] = self.time
+        if not 'order_id' in quote:
+            quote['order_id'] = self.next_order_id
 
         self._last_order_timestamp = quote['timestamp']
 
@@ -418,8 +426,10 @@ class OrderBook(object):
     def process_order_during_continuous_trading(self, quote):
         order_type = quote['type']
         order_in_book = None
-        if 'timestamp' not in quote:
+        if not 'timestamp' in quote:
             quote['timestamp'] = self.time
+        if not 'order_id' in quote:
+            quote['order_id'] = self.next_order_id
 
         self._last_order_timestamp = quote['timestamp']
         if quote['quantity'] <= 0:
@@ -483,7 +493,7 @@ class OrderBook(object):
                     # 'timestamp': self.time,
                     'traded_price': traded_price,
                     'traded_quantity': traded_quantity,
-                    'time': self.time
+                    'time': quote['timestamp'] if 'timestamp' in quote else self.time
                     }
 
             party2_orderid=quote['order_id'] if 'order_id' in quote else None 
@@ -516,7 +526,7 @@ class OrderBook(object):
                 self.tape.append(transaction_record)
 
                 #FDR
-                self.tstape    += [self.time]
+                self.tstape    += [quote['timestamp'] if 'timestamp' in quote else self.time]
                 self.pricetape += [traded_price]
                 self.qttytape  += [traded_quantity]
                 
@@ -561,8 +571,6 @@ class OrderBook(object):
                 trades += new_trades
             # If volume remains, need to update the book with new quantity
             if quantity_to_trade > 0:
-                if not 'order_id' in quote:
-                    quote['order_id'] = self.next_order_id
                 quote['quantity'] = quantity_to_trade
                 self.bids.insert_order(quote)
                 order_in_book = quote
@@ -573,8 +581,6 @@ class OrderBook(object):
                 trades += new_trades
             # If volume remains, need to update the book with new quantity
             if quantity_to_trade > 0:
-                if not 'order_id' in quote:
-                    quote['order_id'] = self.next_order_id
                 quote['quantity'] = quantity_to_trade
                 self.asks.insert_order(quote)
                 order_in_book = quote
@@ -819,7 +825,13 @@ class OrderBook(object):
         if not self.b_auction:
             j = 7+2*self.maxEntries-1
             try:
-                bestbid = self.bids.prices[-1]
+                if len(self.bids.prices) == 0:
+                    if self._lastTradeSign == 'bid':
+                        bestbid = self.lastTradePrice
+                    else:
+                        bestbid = self.lastTradePrice - self.tick_size
+                else:
+                    bestbid = self.bids.prices[-1]
 
                 for i in range(self.maxEntries):
                     price = bestbid - i*self.tick_size
@@ -829,12 +841,20 @@ class OrderBook(object):
             except:
                 if len(self.bids.prices) > 0:
                     sys.exit('ERROR !')    
+
+
             
 
             j = 7+2*self.maxEntries
             try:
-                bestask = self.asks.prices[0]
-
+                if len(self.bids.prices) == 0:
+                    if self._lastTradeSign == 'ask':
+                        bestask = self.lastTradePrice
+                    else:
+                        bestask = self.lastTradePrice + self.tick_size
+                else:
+                    bestask = self.asks.prices[0]
+            
                 for i in range(self.maxEntries):
                     price = bestask + i*self.tick_size
                     res[j] = price

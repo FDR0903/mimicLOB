@@ -59,6 +59,9 @@ class genericAgent(ABC):
 
         # Subscribe to LOB
         if self._b_record:
+            self._executed_quantity = 0
+            self._pending_quantity = 0
+            
             self.addAgent2LOB(self)        
 
     def addAgent2LOB(self, agent):
@@ -79,6 +82,15 @@ class genericAgent(ABC):
     @property
     def FIXserver(self):
         return self._fixserver
+    
+    @property
+    def executed_quantity(self):
+        return self._executed_quantity
+    
+    @property
+    def pending_quantity(self):
+        return self._pending_quantity
+
     @property
     def id(self):
         return self._id
@@ -169,8 +181,8 @@ class genericAgent(ABC):
     Todo : Should make it possible to exec on book 
     """
     # time in nanoseconds
-    def timestamp(self):
-        return time.time_ns()
+    # def timestamp(self):
+    #     return time.time_ns()
     
     def send_sell_limit_order(self, quantity, price, order_id=None, timestamp=None):
         # get best ask price, and post randomly between the price and -spread
@@ -230,12 +242,15 @@ class genericAgent(ABC):
         return 'SENT'
 
     
-    def send_sell_market_order(self, quantity):
+    def send_sell_market_order(self, quantity, timestamp=None):
         # get best ask price, and post randomly between the price and -spread
         sellorder =  {'type' : 'market', 
-                     'side' : 'ask',
-                     'quantity'  : quantity,
-                     'trader_id' : self.id}
+                      'side' : 'ask',
+                      'quantity'  : quantity,
+                      'trader_id' : self.id}
+
+        if timestamp:
+            sellorder['timestamp'] = timestamp
 
         if self.distant:
             response = requests.get(f"{self.server}/sendOrder", 
@@ -250,12 +265,15 @@ class genericAgent(ABC):
         # Should process 
         return 'SENT'
 
-    def send_buy_market_order(self, quantity):
+    def send_buy_market_order(self, quantity, timestamp=None):
         # get best ask price, and post randomly between the price and -spread
         buyorder =  {'type' : 'market', 
                      'side' : 'bid', 
                      'quantity'  : quantity,
                      'trader_id' : self.id}
+
+        if timestamp:
+            buyorder['timestamp'] = timestamp
 
         if self.distant:
             response = requests.get(f"{self.server}/sendOrder", 
@@ -304,13 +322,16 @@ class genericAgent(ABC):
     # only if order's quantity is reduced
     def notify_order_modification(self, order_update):
         if order_update:
+            self._pending_quantity -= (self.pendingorders[order_update['order_id']]['quantity'] - order_update['quantity'])
             self.pendingorders[order_update['order_id']]['quantity'] = order_update['quantity']
+            
 
     def notify_order_cancelation(self, side, order_id):
         if order_id:
             if order_id in self.pendingorders:
+                self._pending_quantity -= self.pendingorders[order_id]['quantity']
                 del self.pendingorders[order_id]
-
+                
             # add cancelation to sent orders
             self.sentorders[self.i_orders] = {'type'      : 'cancel', 
                                               'side'      : side,
@@ -320,6 +341,7 @@ class genericAgent(ABC):
     # This method is called by an LOB to notify that an order has been executed !
     def notify_orders_in_book(self, pendingOrder):
         if pendingOrder:
+            self._pending_quantity += pendingOrder['quantity']
             self.pendingorders[pendingOrder['order_id']] = pendingOrder
         
     def addSentOrders(self, order):
@@ -347,13 +369,17 @@ class genericAgent(ABC):
             else:
                 sys.exit(f'Fatal Error : Notify for agent {self.id}')
             
+            # TODO : here it works for single assets only !
+            self._executed_quantity += trade['traded_quantity']
+
             # if false, it means it is trades that has been executed
             # directly after sending (agressive limit order or market order)
             if check_pending:
                 traded_quantity = trade['traded_quantity']
                 
                 self.pendingorders[order_id]['quantity'] -= traded_quantity
-                
+                self._pending_quantity -= traded_quantity
+
                 if self.pendingorders[order_id]['quantity'] == 0: 
                     del self.pendingorders[order_id]
 

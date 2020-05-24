@@ -13,3 +13,4 @@ __pycache__/
 *.cmd
 log*.txt
 demo/old/*
+demo/Classic/QRM data-Copy1.ipynb

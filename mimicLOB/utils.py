@@ -79,6 +79,13 @@ class LivePlotNotebook(object):
 
         self.bids =[]
         self.asks =[]
+
+        self.buys = []
+        self.sells = []
+        
+        self.xbuys = []
+        self.xsells = []
+        
         self.x =[]
 
         self.minprice = 10000000
@@ -93,6 +100,27 @@ class LivePlotNotebook(object):
         LOBstate.plot.bar(ax=self.ax2)
 
         # self.ax2.bar(x=LOBstate.index, height=LOBstate.values)
+
+    def addSell(self, ts=None):
+        if not ts:
+            ts = self.x[-1]
+        price = self.bids[self.x.index(ts)]
+        lineSells = self.ax.lines[4]
+        self.xsells.append(ts)
+        self.sells.append(price)        
+        lineSells.set_xdata(self.xsells)
+        lineSells.set_ydata(self.sells)
+        
+
+    def addBuy(self, ts=None):
+        if not ts:
+            ts = self.x[-1]
+        price = self.bids[self.x.index(ts)]
+        lineBuys = self.ax.lines[3]
+        self.xbuys.append(ts)
+        self.buys.append(price)        
+        lineBuys.set_xdata(self.xbuys)
+        lineBuys.set_ydata(self.buys)
 
     def update(self, ts, bestbid, bestask, LOBstate):             
         # update lob

@@ -62,7 +62,7 @@ class QRM(genericAgent):
         self._verbose   = self.dict_params['verbose'] if 'verbose' in self.dict_params else False 
 
         # time counter
-        self._itimestamp = -1 # if intensities are given in 
+        self._itimestamp = 0 # if intensities are given in 
 
         # for every (qi, queue), generate poisson paths (waiting times), when it gets consumed, regenarates        
         for queue in self._queues:
@@ -80,6 +80,9 @@ class QRM(genericAgent):
 
         # redrawing of LOB boolean
         self.redraw = False
+
+        #No scheduler by default
+        self.sched = None
 
         # invariant lob, if not alreadyu invariant
         if self.id != 'invariantAgent':
@@ -415,9 +418,13 @@ class QRM(genericAgent):
         self._prev_refprice = curr_refprice
         
         # if the send orders are being activated by a scheduler
-        if itimestamp > self.maxruns:
-            print('******* Simulation OVER *******')
-            self.sched.pause()
+        if self.sched: 
+            if itimestamp > self.maxruns:
+                print('******* Simulation OVER *******')
+                self.sched.pause()
+
+    def reset(self):
+        self._itimestamp = 0
 
     def cancel_an_order_at_limit(self, qtty_to_cancel, side, price, itimestamp):
         remaining_qtty = qtty_to_cancel
@@ -425,9 +432,9 @@ class QRM(genericAgent):
         if random() < self._MOPart:
             orderside = 'bid' if side == 'ask' else 'bid'
             if orderside == 'bid':
-                self.send_buy_market_order(qtty_to_cancel)
+                self.send_buy_market_order(qtty_to_cancel, timestamp=itimestamp)
             else:
-                self.send_sell_market_order(qtty_to_cancel)
+                self.send_sell_market_order(qtty_to_cancel, timestamp=itimestamp)
 
             if self._verbose: print('I SENT A MARKET ORDER')
         # cancel
